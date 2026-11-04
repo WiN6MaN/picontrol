@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "picontrol"
+version = "0.1.0"
+description = "Power/reset buttons, fan, LED and NFC cartridges for a RetroPie console built on the Pi Control board"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "MIT"}
+keywords = ["retropie", "raspberry-pi", "nfc", "pn532", "gpio"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Hardware",
+]
+dependencies = []
+
+[project.optional-dependencies]
+gpio = ["RPi.GPIO"]
+
+[project.scripts]
+picontrol = "picontrol.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
