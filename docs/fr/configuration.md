@@ -30,6 +30,10 @@ Allumé à `threshold_on` °C, éteint à `threshold_off` °C, et jamais éteint
 
 Présenter un tag lance son jeu une seule fois. Le laisser en place ne fait rien (le jeu n'est pas relancé quand il se termine). Un tag est considéré retiré après `remove_delay` secondes d'absence ; le présenter de nouveau relance le jeu. Détails dans [tags NFC](nfc-tags.md).
 
+### Interface web
+
+Optionnelle et désactivée par défaut : état, tags NFC, quelques réglages sûrs et redémarrage/arrêt depuis un navigateur de votre réseau local. Tout est décrit dans [interface web](web.md).
+
 ### LED
 
 | Motif | Signification |
@@ -64,6 +68,11 @@ Présenter un tag lance son jeu une seule fois. Le laisser en place ne fait rien
 | `[paths]` | `roms_dir`, `runcommand`, `retroarch_cfg`, `emulationstation_command`, `extra_emulators` | valeurs RetroPie | Emplacements |
 | `[retroarch]` | `host`, `port` | `127.0.0.1`, `55355` | Doit correspondre à `network_cmd_port` |
 | `[logging]` | `file`, `level` | `/var/log/picontrol.log`, `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `[web]` | `enabled` | `false` | Active l'interface web (exige un mot de passe) |
+| | `host`, `port`, `tls` | `0.0.0.0`, `8443`, `true` | Où elle écoute ; HTTPS avec un certificat auto-signé |
+| | `cert_file`, `key_file`, `password_file` | dans `/etc/picontrol/` | Certificat, clé et hachage du mot de passe |
+| | `session_timeout`, `max_login_failures`, `lockout` | `3600`, `5`, `300` | Secondes d'inactivité ; échecs avant blocage ; secondes de blocage |
+| | `allow_public`, `allowed_networks`, `allowed_hosts` | `false`, aucun, aucun | Laissez `allow_public` désactivé : ne l'exposez jamais sur internet |
 
 Chaque composant a un interrupteur `enabled` : par exemple, `[nfc] enabled = false` fait tourner les boutons et le ventilateur sans NFC.
 
@@ -75,6 +84,7 @@ picontrol tag read                  # affiche le tag présent
 picontrol tag write nes "Super Mario Bros.nes"
 picontrol tag write --current       # écrit le jeu en cours
 picontrol test led|fan|buttons|nfc  # tests matériels
+picontrol web set-password          # définit le mot de passe de l'interface web
 picontrol doctor                    # vérifie l'installation
 picontrol --debug ...               # journal détaillé dans le terminal
 ```

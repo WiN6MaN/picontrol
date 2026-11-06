@@ -2,6 +2,17 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). / Format inspiré de Keep a Changelog.
 
+## [0.2.0] - 2026-11-04
+
+- Optional web interface (off by default, no default password, local network only, HTTPS with a self-signed certificate): status, NFC tag read/write with game search, safe settings editor, restart/reboot/shutdown, log viewer; English and French.
+  / Interface web optionnelle (désactivée par défaut, sans mot de passe par défaut, réseau local seulement, HTTPS auto-signé) : état, lecture/écriture de tags NFC avec recherche de jeux, éditeur de réglages sûrs, redémarrage/reboot/arrêt, journal ; en français et en anglais.
+- Hardening: PBKDF2 password hash, login lockout, sessions with CSRF tokens, `Host` header validation, strict Content-Security-Policy, whitelisted editable settings (never commands, paths or pins).
+  / Durcissement : mot de passe haché PBKDF2, blocage après échecs, sessions avec jetons CSRF, validation de l'en-tête `Host`, CSP stricte, réglages modifiables limités (jamais commandes, chemins ni broches).
+- New commands: `picontrol web set-password`; `picontrol doctor` checks the web settings. NFC operations are now queued jobs handled by the NFC thread.
+  / Nouvelle commande : `picontrol web set-password` ; `picontrol doctor` vérifie les réglages web. Les opérations NFC sont des tâches traitées par le thread NFC.
+- 350+ tests, including a browser-level test of the page (jsdom) in CI.
+  / Plus de 350 tests, dont un test de la page de type navigateur (jsdom) en CI.
+
 ## [0.1.0] - 2026-11-04
 
 First release. / Première version.

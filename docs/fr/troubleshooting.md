@@ -28,6 +28,13 @@ Pour arrêter le service en cours pendant vos essais : `pkill -f "python3 -m pic
 | « The reader is busy » | Une autre commande ou le service tient le lecteur | Réessayez ; les commandes attendent jusqu'à 20 s |
 | Erreurs NFC aléatoires | Fils longs ou mal serrés, module hors mode SPI, bruit d'alimentation | `picontrol --debug run` ; vérifiez le câblage et l'alimentation |
 | Le retour d'un jeu lancé par tag est lent | EmulationStation recharge ses listes | Voir [installation](installation.md#emulationstation-plus-rapide) |
+| La page web ne charge pas | Interface web désactivée, pas de mot de passe, mauvaise adresse ou mauvais port | `picontrol doctor` ; vérifiez `[web] enabled` ; le journal donne l'adresse (`tail /var/log/picontrol.log`) |
+| Le navigateur avertit du certificat | Certificat auto-signé | Normal : comparez l'empreinte avec celle du journal, puis acceptez |
+| « access is limited to the local network » | La requête vient d'une adresse publique | Utilisez-la depuis votre réseau domestique ; pour un VPN, ajoutez sa plage à `allowed_networks` ; ne redirigez jamais le port |
+| « unexpected Host header » | Un nom que le Pi ne reconnaît pas | Utilisez son adresse IP ou `<nom-d'hôte>.local`, ou ajoutez le nom à `allowed_hosts` |
+| « too many failed attempts » | Le blocage est actif pour votre adresse | Attendez `lockout` secondes (5 minutes par défaut) |
+| Réglages enregistrés mais rien n'a changé | Le service n'a pas encore redémarré | Onglet Système, puis « Redémarrer le service » |
+| L'enregistrement des réglages échoue (« cannot be written ») | Le fichier de configuration n'est pas modifiable par l'utilisateur RetroPie | `sudo chown -R pi /etc/picontrol`, ou relancez `install.sh` |
 | Journal absent ou vide | Non inscriptible | Le service journalise alors sur stderr ; corrigez les droits de `/var/log/picontrol.log` |
 
 ## Signaler un problème

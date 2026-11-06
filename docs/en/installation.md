@@ -26,13 +26,17 @@ If `git` is missing: `sudo apt install git`. The installer is **idempotent**: ru
 |---|---|---|
 | Code | `/opt/picontrol/lib/picontrol` | Replaced on each install |
 | Launcher | `/usr/local/bin/picontrol` | Small shell wrapper |
-| Configuration | `/etc/picontrol/picontrol.conf` | Created once; new defaults land in `picontrol.conf.dist` |
+| Configuration | `/etc/picontrol/picontrol.conf` | Created once; new defaults land in `picontrol.conf.dist`. The folder belongs to the RetroPie user so the web interface can save settings |
 | Log file | `/var/log/picontrol.log` | Owned by the RetroPie user; rotated at 200 kB |
 | Dependency | `python3-rpi.gpio` | Installed with `apt` only if missing |
 | RetroArch | `/opt/retropie/configs/all/retroarch.cfg` | Sets `network_cmd_enable = "true"` and the port, after saving a copy as `retroarch.cfg.picontrol-bak` |
 | Start-up | `/opt/retropie/configs/all/autostart.sh` | Adds one marked block **before** the `emulationstation` line (copy saved as `autostart.sh.picontrol-bak`) |
 
 Options: `--dry-run`, `--skip-deps`, `--no-retroarch-config`, `--no-autostart`, `--user NAME`.
+
+### Optional: the web interface
+
+It is off by default. To turn it on, see [web interface](web.md) (`picontrol web set-password`, then `enabled = true` in the `[web]` section).
 
 ### Manual start-up (if you used `--no-autostart`)
 

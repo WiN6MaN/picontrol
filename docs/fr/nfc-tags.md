@@ -1,5 +1,11 @@
 # Tags NFC (« cartouches »)
 
+## Le NFC en quelques mots
+
+Un tag NFC est une minuscule puce passive, sans pile. Le lecteur (le module PN532) produit en permanence un champ magnétique à 13,56 MHz. Quand un tag s'approche à environ 3 ou 4 cm, le champ l'alimente par induction - comme un chargeur sans fil - et il répond par son identifiant unique (l'**UID**). Le lecteur peut alors lire et écrire la mémoire du tag, après s'être authentifié avec une clé. Les tags MIFARE Classic 1K du kit ont 1 Ko, organisé en blocs.
+
+Ici, le tag ne contient **pas** le jeu. Il porte deux petits textes - le système et le nom de la ROM - et le logiciel cherche le jeu sur votre carte SD. Un tag fonctionne donc sur toute console qui a la même ROM sous le même nom.
+
 ## Fonctionnement
 
 Un tag contient deux textes : un **système** (le nom du dossier RetroPie, par exemple `nes`, `snes`, `megadrive`) et un **nom de fichier ROM** (par exemple `Super Mario Bros.nes`). Quand vous présentez un tag, le service le lit, vérifie que la ROM existe et la lance avec le `runcommand.sh` de RetroPie.
@@ -18,7 +24,7 @@ picontrol tag write --current                    # le jeu en cours à l'instant
 picontrol tag read                               # affiche l'UID, le système et la ROM
 ```
 
-`write` refuse une ROM inexistante (`--force` pour passer outre) et **relit toujours le tag** pour vérifier. Vous pouvez aussi maintenir le bouton reset pendant un jeu, puis présenter un tag.
+`write` refuse une ROM inexistante (`--force` pour passer outre) et **relit toujours le tag** pour vérifier. Vous pouvez aussi maintenir le bouton reset pendant un jeu, puis présenter un tag, ou utiliser l'[interface web](web.md), qui ajoute une recherche de jeux.
 
 Les commandes attendent le lecteur (le service le libère entre deux sondages) : elles s'utilisent donc pendant que le service tourne.
 
@@ -49,4 +55,4 @@ Une amélioration par rapport au décodeur d'origine : celui-ci repérait les en
 
 ## Non pris en charge
 
-Les tags NTAG/Ultralight, les tags à clés non standard, une interface web de gestion des tags (utilisez les commandes ci-dessus) et l'écriture depuis un téléphone.
+Les tags NTAG/Ultralight, les tags à clés non standard, et l'écriture de tags depuis la puce NFC d'un téléphone.

@@ -14,10 +14,11 @@ Présentez une « cartouche » NFC et son jeu démarre. Basculez l'interrupteur 
 - **Cartouches NFC** - détection en direct (PN532 en SPI logiciel), compatible avec les tags écrits par Pi Control d'origine.
 - **Ventilateur** - hystérésis en température avec durée de marche minimale, et sécurité : ventilateur ALLUMÉ si la température est illisible.
 - **LED** - pilotée directement par son GPIO (pas de port série, aucune modification de `config.txt`).
+- **Interface web (optionnelle)** - état, tags NFC avec recherche de jeux, réglages, redémarrage/arrêt, depuis n'importe quel appareil de votre réseau local. Désactivée par défaut, sans mot de passe par défaut, refuse tout ce qui vient de l'extérieur de votre réseau.
 - **Robuste par conception** - threads supervisés (un plantage ne peut pas arrêter l'interrupteur power), un seul propriétaire du lecteur NFC, délais maximum partout, récupération automatique du lecteur.
-- **Sûr par conception** - le contenu d'un tag est une entrée non fiable : validé, jamais passé à un shell. Pas de serveur web, pas de socket en écoute.
+- **Sûr par conception** - le contenu d'un tag est une entrée non fiable : validé, jamais passé à un shell. Aucun socket en écoute tant que vous n'activez pas l'interface web optionnelle.
 - **Exploitable** - `picontrol doctor`, `picontrol test led|fan|buttons|nfc`, un mode simulation, un installateur idempotent avec sauvegardes, un fichier de configuration annoté.
-- **Testé** - plus de 150 tests contre un simulateur de matériel PN532 / MIFARE, sur Python 3.7 à 3.12 (3.7 est la version livrée avec RetroPie 4.8).
+- **Testé** - plus de 350 tests contre un simulateur de matériel PN532 / MIFARE, sur Python 3.7 à 3.12 (3.7 est la version livrée avec RetroPie 4.8), plus un test de la page web dans un environnement de type navigateur.
 
 ## État
 
@@ -41,6 +42,7 @@ sudo reboot
 
 ```
 picontrol tag write nes "Super Mario Bros.nes"    # puis présentez le tag
+picontrol web set-password                        # interface web optionnelle : voir docs/fr/web.md
 ```
 
 ## Documentation
@@ -49,6 +51,7 @@ picontrol tag write nes "Super Mario Bros.nes"    # puis présentez le tag
 |---|---|
 | [Matériel](docs/fr/hardware.md) | Carte, table des broches, module PN532, tests de câblage |
 | [Installation](docs/fr/installation.md) | Installer, mettre à jour, désinstaller, migrer depuis l'original, EmulationStation plus rapide |
+| [Interface web](docs/fr/web.md) | L'activer, ce qu'elle fait, modèle de sécurité, API |
 | [Configuration](docs/fr/configuration.md) | Comportement, motifs de la LED, tous les réglages, commandes |
 | [Tags NFC](docs/fr/nfc-tags.md) | Écrire/lire des tags, format, compatibilité |
 | [Architecture](docs/fr/architecture.md) | Décisions de conception, modules, stratégie de test, limites |
@@ -64,12 +67,12 @@ Ce projet s'inspire du logiciel Pi Control d'origine mais n'en partage aucun cod
 | Scripts Python 2, plusieurs processus | Un seul programme Python 3.7+, threads supervisés |
 | Les boutons et le serveur web parlent tous deux au lecteur NFC | Un seul propriétaire du lecteur, plus un verrou inter-processus pour la CLI |
 | NFC lu seulement au démarrage, au reset ou en cyclant l'interrupteur | Détection en direct |
-| Interface web avec mot de passe par défaut | Pas d'interface web ; tags gérés en ligne de commande |
+| Interface web avec mot de passe par défaut | Interface web optionnelle : désactivée par défaut, sans mot de passe par défaut, réseau local seulement, durcie (voir [sécurité](SECURITY.md)) |
 | Noms de jeux intégrés à des commandes shell | Noms validés, listes d'arguments, aucun shell |
 | Un « Q » majuscule dans un nom de jeu tronquait l'enregistrement du tag | Enregistrements décodés par longueur |
 | Des hooks `runcommand` arrêtent EmulationStation à chaque jeu | Aucun hook : seuls les lancements par tag relancent EmulationStation |
 | Port série activé pour allumer la LED | LED sur son GPIO |
-| Pas de tests automatisés dans le paquet | Plus de 150 tests avec simulateur de matériel |
+| Pas de tests automatisés dans le paquet | Plus de 350 tests avec simulateur de matériel, plus un test de type navigateur |
 
 ## Organisation du dépôt
 

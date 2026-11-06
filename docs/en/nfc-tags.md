@@ -1,5 +1,11 @@
 # NFC tags ("cartridges")
 
+## NFC in a few words
+
+An NFC tag is a tiny passive chip with no battery. The reader (the PN532 module) continuously produces a magnetic field at 13.56 MHz. When a tag comes within about 3-4 cm, the field powers it by induction - like a wireless charger - and it answers with its unique identifier (the **UID**). The reader can then read and write the tag's memory, after authenticating with a key. The MIFARE Classic 1K tags of the kit hold 1 KB, organised in blocks.
+
+Here the tag does **not** contain the game. It holds two short texts - the system and the ROM name - and the software looks the game up on your SD card. A tag therefore works on any console that has the same ROM under the same name.
+
 ## How it works
 
 A tag stores two pieces of text: a **system** (the RetroPie folder name, for example `nes`, `snes`, `megadrive`) and a **ROM file name** (for example `Super Mario Bros.nes`). When you present a tag the service reads it, checks that the ROM exists, and starts it through RetroPie's `runcommand.sh`.
@@ -18,7 +24,7 @@ picontrol tag write --current                    # the game that is running righ
 picontrol tag read                               # show UID, system and ROM
 ```
 
-`write` refuses a ROM that does not exist (use `--force` to override), and always **reads the tag back** to verify. You can also hold the reset button during a game, then present a tag.
+`write` refuses a ROM that does not exist (use `--force` to override), and always **reads the tag back** to verify. You can also hold the reset button during a game, then present a tag, or use the [web interface](web.md), which adds a game search.
 
 The commands wait for the reader (the service releases it between polls), so they can be used while the service runs.
 
@@ -49,4 +55,4 @@ One improvement over the original decoder: it located records by looking for the
 
 ## Not supported
 
-NTAG/Ultralight tags, tags with non-default keys, a web interface for managing tags (use the commands above), and writing from a phone.
+NTAG/Ultralight tags, tags with non-default keys, and writing tags from a phone's NFC chip.

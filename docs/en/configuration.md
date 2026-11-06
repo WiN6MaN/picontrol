@@ -30,6 +30,10 @@ On at `threshold_on` °C, off at `threshold_off` °C, and never off before it ha
 
 Presenting a tag launches its game once. Leaving it in place does nothing (the game is not relaunched when it ends). A tag counts as removed after it has been absent for `remove_delay` seconds; presenting it again launches again. Details in [NFC tags](nfc-tags.md).
 
+### Web interface
+
+Optional and off by default: status, NFC tags, a few safe settings and restart/shutdown from a browser on your local network. Everything is described in [web interface](web.md).
+
 ### LED
 
 | Pattern | Meaning |
@@ -64,6 +68,11 @@ Presenting a tag launches its game once. Leaving it in place does nothing (the g
 | `[paths]` | `roms_dir`, `runcommand`, `retroarch_cfg`, `emulationstation_command`, `extra_emulators` | RetroPie defaults | Where things live |
 | `[retroarch]` | `host`, `port` | `127.0.0.1`, `55355` | Must match `network_cmd_port` |
 | `[logging]` | `file`, `level` | `/var/log/picontrol.log`, `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `[web]` | `enabled` | `false` | Turn the web interface on (needs a password) |
+| | `host`, `port`, `tls` | `0.0.0.0`, `8443`, `true` | Where it listens; HTTPS with a self-signed certificate |
+| | `cert_file`, `key_file`, `password_file` | in `/etc/picontrol/` | Certificate, key and password hash |
+| | `session_timeout`, `max_login_failures`, `lockout` | `3600`, `5`, `300` | Idle seconds; failures before a lockout; lockout seconds |
+| | `allow_public`, `allowed_networks`, `allowed_hosts` | `false`, none, none | Keep `allow_public` off: never expose it to the internet |
 
 Every component has an `enabled` switch: for example, `[nfc] enabled = false` runs the buttons and fan without NFC.
 
@@ -75,6 +84,7 @@ picontrol tag read                  # show the tag in the field
 picontrol tag write nes "Super Mario Bros.nes"
 picontrol tag write --current       # write the game that is running now
 picontrol test led|fan|buttons|nfc  # hardware tests
+picontrol web set-password          # set the web interface password
 picontrol doctor                    # check the installation
 picontrol --debug ...               # verbose log on the terminal
 ```

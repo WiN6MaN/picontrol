@@ -28,6 +28,13 @@ To stop the running service while you experiment: `pkill -f "python3 -m picontro
 | "The reader is busy" | Another command or the service holds the reader | Retry; commands wait up to 20 s |
 | Random NFC errors | Long or loose wires, module not in SPI mode, supply noise | `picontrol --debug run`; check wiring and the supply |
 | Returning from a tag game is slow | EmulationStation reloads its lists | See [installation](installation.md#faster-emulationstation) |
+| The web page does not load | Web interface off, no password, wrong address or port | `picontrol doctor`; check `[web] enabled`; the log gives the address (`tail /var/log/picontrol.log`) |
+| The browser warns about the certificate | Self-signed certificate | Expected: compare the fingerprint with the one in the log, then accept |
+| "access is limited to the local network" | The request came from a public address | Use it from your home network; for a VPN add its range to `allowed_networks`; never port-forward |
+| "unexpected Host header" | A name the Pi does not recognise | Use its IP address or `<hostname>.local`, or add the name to `allowed_hosts` |
+| "too many failed attempts" | The lockout is active for your address | Wait `lockout` seconds (5 minutes by default) |
+| Settings saved but nothing changed | The service has not restarted yet | System tab, then "Restart the service" |
+| Saving settings fails ("cannot be written") | The configuration file is not writable by the RetroPie user | `sudo chown -R pi /etc/picontrol`, or run `install.sh` again |
 | Log file missing or empty | Not writable | The service logs to stderr instead; fix permissions on `/var/log/picontrol.log` |
 
 ## Reporting a problem

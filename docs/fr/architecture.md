@@ -9,6 +9,7 @@
  │                └─ bouton reset (GPIO23) ───────► RESET │ demande d'écriture     │
  │ thread ventilo ── /sys thermique ──► hystérésis ──► MOSFET ventilateur (GPIO18) │
  │ thread nfc ────── PN532 (GPIO 4/17/27/22) ──► tag ──► Launcher ──► runcommand   │
+ │ thread web ────── HTTPS, réseau local seulement (optionnel) ──► Backend ──► ci-dessus │
  │ LED (partagée, verrouillée) ◄── tous les composants                             │
  └────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -28,6 +29,9 @@ Chaque thread est supervisé séparément : une exception est journalisée et le
 | `launcher.py` | Validation des ROM, arrêt/lancement des jeux et d'EmulationStation |
 | `buttons.py`, `fan.py`, `led.py` | Petites machines à états pilotées par une horloge injectée |
 | `retroarch.py` | Commandes réseau UDP de RetroArch |
+| `web.py`, `webauth.py` | Serveur web (bibliothèque standard), logique des requêtes, mots de passe, sessions, filtres réseau |
+| `webbackend.py`, `configedit.py` | Ce que l'interface web voit et fait ; édition sûre du fichier de configuration |
+| `webui/` | La page elle-même : HTML, CSS et JavaScript, sans framework ni code en ligne |
 | `service.py` | Assemblage, supervision des threads, séquence d'arrêt |
 | `cli.py`, `doctor.py`, `hwtest.py` | Ligne de commande, auto-diagnostic, tests matériels |
 
@@ -42,11 +46,12 @@ Chaque thread est supervisé séparément : une exception est journalisée et le
 - **Présence avec délai.** Un tag n'est « retiré » qu'après `remove_delay` secondes sans détection : un tag en bord de champ ne provoque pas de relances.
 - **LED sur son GPIO.** Ni port série ni modification de `config.txt` (voir [matériel](hardware.md)).
 - **Sécurités.** Ventilateur allumé si la température est illisible ou si le contrôleur s'arrête ; pas d'arrêt si la commande échoue (l'interrupteur se réarme) ; rien n'est lancé pendant l'arrêt.
-- **Aucune surface réseau.** Pas de serveur web, pas de socket en écoute. Le seul trafic réseau est de l'UDP vers RetroArch sur localhost.
+- **Petite surface réseau, désactivée par défaut.** Sans l'interface web, il n'y a aucun socket en écoute (seulement de l'UDP vers RetroArch sur localhost). L'interface web optionnelle repose sur la bibliothèque standard, est durcie et limitée au réseau local : voir [interface web](web.md).
+- **Les opérations sur les tags sont des tâches.** L'interface web et le bouton reset demandent au thread NFC de lire ou d'écrire un tag et attendent la réponse ; le thread reste le seul propriétaire du lecteur.
 
 ## Stratégie de test
 
-La suite de tests (plus de 150 tests, pytest) exerce toute la pile contre un **simulateur** du PN532 et d'un tag MIFARE Classic branchés sur les mêmes broches de SPI logiciel : transferts bit à bit, trames et sommes de contrôle, ACK/réponse, authentification, lecture/écriture de blocs, pannes injectées (puce muette, réponses corrompues). L'installateur est exécuté pour de vrai dans un bac à sable. Les boutons et le ventilateur sont pilotés par une horloge injectée : aucun test n'attend en temps réel.
+La suite de tests (plus de 350 tests, pytest) exerce toute la pile contre un **simulateur** du PN532 et d'un tag MIFARE Classic branchés sur les mêmes broches de SPI logiciel : transferts bit à bit, trames et sommes de contrôle, ACK/réponse, authentification, lecture/écriture de blocs, pannes injectées (puce muette, réponses corrompues). L'installateur est exécuté pour de vrai dans un bac à sable, et la page web est pilotée dans un environnement de type navigateur (jsdom) contre le vrai serveur sur du faux matériel - ce qui a révélé un bogue qu'aucun test Python ne pouvait voir. Les boutons et le ventilateur sont pilotés par une horloge injectée : aucun test n'attend en temps réel.
 
 Le simulateur reproduit le protocole tel que l'utilisait le pilote d'origine, mais ce n'est pas la vraie puce : la validation sur le matériel reste l'étape finale, d'où `picontrol test` et `picontrol doctor`.
 

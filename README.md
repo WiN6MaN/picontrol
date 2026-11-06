@@ -14,10 +14,11 @@ Present an NFC "cartridge" and its game starts. Flip the power switch and the co
 - **NFC cartridges** - live tag detection (PN532 over software SPI), compatible with tags written by the original Pi Control.
 - **Fan** - temperature hysteresis with a minimum run time, and a fail-safe: fan ON if the temperature cannot be read.
 - **LED** - driven straight from its GPIO (no serial port, no `config.txt` change).
+- **Web interface (optional)** - status, NFC tags with game search, settings, restart/shutdown, from any device on your local network. Off by default, no default password, refuses anything from outside your network.
 - **Robust by design** - supervised worker threads (a crash in one cannot stop the power switch), a single owner for the NFC reader, timeouts everywhere, automatic reader recovery.
-- **Safe by design** - tag content is untrusted input: validated, never passed to a shell. No web server, no listening socket.
+- **Safe by design** - tag content is untrusted input: validated, never passed to a shell. No listening socket unless you turn the optional web interface on.
 - **Operable** - `picontrol doctor`, `picontrol test led|fan|buttons|nfc`, a dry-run mode, an idempotent installer with backups, one annotated configuration file.
-- **Tested** - 150+ tests against a PN532 / MIFARE hardware simulator, on Python 3.7 to 3.12 (3.7 is what RetroPie 4.8 ships).
+- **Tested** - 350+ tests against a PN532 / MIFARE hardware simulator, on Python 3.7 to 3.12 (3.7 is what RetroPie 4.8 ships), plus a browser-level test of the web page.
 
 ## Status
 
@@ -41,6 +42,7 @@ Write a cartridge:
 
 ```
 picontrol tag write nes "Super Mario Bros.nes"    # then present the tag
+picontrol web set-password                        # optional web interface: see docs/en/web.md
 ```
 
 ## Documentation
@@ -49,6 +51,7 @@ picontrol tag write nes "Super Mario Bros.nes"    # then present the tag
 |---|---|
 | [Hardware](docs/en/hardware.md) | Board, pin map, PN532 module, wiring tests |
 | [Installation](docs/en/installation.md) | Install, upgrade, uninstall, migrating from the original, faster EmulationStation |
+| [Web interface](docs/en/web.md) | Turning it on, what it does, security model, API |
 | [Configuration](docs/en/configuration.md) | Behaviour, LED patterns, every setting, commands |
 | [NFC tags](docs/en/nfc-tags.md) | Writing/reading tags, format, compatibility |
 | [Architecture](docs/en/architecture.md) | Design decisions, modules, testing strategy, limits |
@@ -64,12 +67,12 @@ This project is inspired by the original Pi Control software but shares none of 
 | Python 2 scripts, several processes | One Python 3.7+ program, supervised threads |
 | Buttons and web server both talk to the NFC reader | A single owner for the reader, plus an inter-process lock for the CLI |
 | NFC read only at boot, on reset, or when the switch is cycled | Live detection |
-| Web interface with a default password | No web interface; tags managed from the command line |
+| Web interface with a default password | Optional web interface: off by default, no default password, local network only, hardened (see [security](SECURITY.md)) |
 | Game names built into shell commands | Validated names, argument lists, no shell |
 | A capital `Q` in a game name truncated the tag record | Records decoded by length |
 | `runcommand` hooks stop EmulationStation for every game | No hooks: only tag launches restart EmulationStation |
 | Serial port enabled to light the LED | LED on its GPIO |
-| No automated tests in the package | 150+ tests with a hardware simulator |
+| No automated tests in the package | 350+ tests with a hardware simulator, plus a browser-level test |
 
 ## Repository layout
 

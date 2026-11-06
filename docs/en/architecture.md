@@ -9,6 +9,7 @@
  │                └─ reset button (GPIO23) ─► RESET │ write-current-game request   │
  │ fan thread ────── /sys thermal ──► hysteresis ──► fan MOSFET (GPIO18)          │
  │ nfc thread ────── PN532 (GPIO 4/17/27/22) ──► tag ──► Launcher ──► runcommand  │
+ │ web thread ────── HTTPS, local network only (optional) ──► Backend ──► the above │
  │ LED (shared, locked) ◄── every component                                       │
  └────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -28,6 +29,9 @@ Each worker thread is supervised on its own: an exception is logged and the work
 | `launcher.py` | ROM validation, stopping/starting games and EmulationStation |
 | `buttons.py`, `fan.py`, `led.py` | Small state machines driven by an injected clock |
 | `retroarch.py` | RetroArch UDP network commands |
+| `web.py`, `webauth.py` | Web server (standard library), request logic, passwords, sessions, network guards |
+| `webbackend.py`, `configedit.py` | What the web interface can see and do; safe editing of the configuration file |
+| `webui/` | The page itself: HTML, CSS and JavaScript, no framework, no inline code |
 | `service.py` | Wiring, worker supervision, shutdown sequence |
 | `cli.py`, `doctor.py`, `hwtest.py` | Command line, self-check, hardware tests |
 
@@ -42,11 +46,12 @@ Each worker thread is supervised on its own: an exception is logged and the work
 - **Debounced presence.** A tag is "removed" only after `remove_delay` seconds without detection, so a tag at the edge of the field does not cause relaunches.
 - **LED on its GPIO.** No serial port and no change to `config.txt` (see [hardware](hardware.md)).
 - **Fail-safes.** Fan on when the temperature is unreadable or the controller stops; no shutdown if the command fails (the switch re-arms); nothing is launched while shutting down.
-- **No network surface.** No web server, no listening socket. The only network traffic is UDP to RetroArch on localhost.
+- **Small network surface, off by default.** Without the web interface there is no listening socket at all (only UDP to RetroArch on localhost). The optional web interface is built on the standard library, hardened and restricted to the local network: see [web interface](web.md).
+- **Tag operations are jobs.** The web interface and the reset button ask the NFC thread to read or write a tag and wait for the answer; the thread stays the single owner of the reader.
 
 ## Testing strategy
 
-The test-suite (more than 150 tests, pytest) exercises the whole stack against a **simulator** of the PN532 and a MIFARE Classic tag wired to the same software-SPI pins: bit-banged transfers, frames and checksums, ACK/response, authentication, block read/write, injected faults (silent chip, corrupted answers). The installer is run for real in a sandbox. Buttons and fan are driven by an injected clock, so no test waits in real time.
+The test-suite (more than 350 tests, pytest) exercises the whole stack against a **simulator** of the PN532 and a MIFARE Classic tag wired to the same software-SPI pins: bit-banged transfers, frames and checksums, ACK/response, authentication, block read/write, injected faults (silent chip, corrupted answers). The installer is run for real in a sandbox, and the web page is driven in a browser-like environment (jsdom) against the real server on fake hardware - which caught a bug no Python test could see. Buttons and fan are driven by an injected clock, so no test waits in real time.
 
 The simulator reproduces the protocol as the original driver used it, but it is not the real chip: hardware validation remains the final step, which is why `picontrol test` and `picontrol doctor` exist.
 
