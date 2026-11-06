@@ -29,3 +29,15 @@ class NotOurTag(TagError):
 
 class LaunchError(TagError):
     """The requested game cannot be launched (invalid name, missing ROM...)."""
+
+
+class BusyError(PicontrolError):
+    """Another tag operation is already in progress."""
+
+
+class ApiError(PicontrolError):
+    """An error reported to the web client with an HTTP status code."""
+
+    def __init__(self, status, message):
+        super().__init__(message)
+        self.status = status

@@ -16,7 +16,7 @@ import threading
 import time
 
 from . import tagstore
-from .errors import LaunchError, ReaderError, TagError
+from .errors import BusyError, NotOurTag, ReaderError, TagError
 from .lock import ReaderLock
 from .pn532 import PN532, hexstr
 
@@ -38,6 +38,30 @@ def write_and_verify(reader, uid, values, sleep=time.sleep):
         raise ReaderError("verification failed after writing")
 
 
+class TagJob:
+    """A request from another thread (reset button, web interface) executed by the NFC thread.
+
+    kind "write": write ``values`` on the next tag presented; kind "read": read the next tag presented.
+    The requester waits on ``done``; ``result`` or ``error`` is then set.
+    Une demande venant d'un autre thread, exécutée par le thread NFC.
+    """
+
+    def __init__(self, kind, values=None, timeout=15.0, announce=True):
+        self.kind, self.values, self.timeout, self.announce = kind, values, timeout, announce
+        self.deadline = None
+        self.done = threading.Event()
+        self.result = None
+        self.error = None
+        self.timed_out = False
+
+    def finish(self, result=None, error=None, timed_out=False):
+        self.result, self.error, self.timed_out = result, error, timed_out
+        self.done.set()
+
+    def wait(self, timeout=None):
+        return self.done.wait(timeout)
+
+
 class NfcService:
     def __init__(self, cfg, reader, launcher, led, clock=time.monotonic, sleep=time.sleep):
         self.cfg, self.reader, self.launcher, self.led = cfg, reader, launcher, led
@@ -49,48 +73,84 @@ class NfcService:
         self.last_launch = -1e9
         self.first_cycle = True
         self.ready = False
-        self._pending_write = None
+        self._job = None
         self._lock = threading.Lock()
 
-    # ------------------------------------------------------------------ write requests
+    # ------------------------------------------------------------------ requests from other threads
+    def submit(self, job):
+        """Queue a TagJob. Raises BusyError if another one is waiting or running."""
+        with self._lock:
+            if self._job is not None:
+                raise BusyError("another tag operation is in progress")
+            job.deadline = self._clock() + job.timeout
+            self._job = job
+        return job
+
     def request_write_current(self):
         """Queue 'write the running game on the next tag'. Raises LaunchError if no game is running."""
         system, rom = self.launcher.current_game()
-        with self._lock:
-            self._pending_write = (system, rom, self._clock() + self.cfg.nfc.write_timeout)
+        job = self.submit(TagJob("write", [system, rom], self.cfg.nfc.write_timeout))
         log.info("Write request queued: %s / %s", system, rom)
+        return job
 
-    def _take_write(self):
+    def status(self):
+        return {"enabled": True, "ready": self.ready, "busy": self._job is not None,
+                "tag": hexstr(self.uid) if self.uid else None}
+
+    def _take_job(self):
         with self._lock:
-            request, self._pending_write = self._pending_write, None
-        return request
+            job, self._job = self._job, None
+        return job
 
-    def _do_write(self, system, rom, deadline):
-        log.info("Present a tag to write %s / %s", system, rom)
-        while self._clock() < deadline:
-            uid = self.reader.read_uid()
-            if uid is not None:
-                try:
-                    write_and_verify(self.reader, uid, [system, rom], self._sleep)
-                except (TagError, ReaderError) as exc:
-                    log.error("Writing failed: %s", exc)
+    def _run_job(self, job):
+        log.info("Tag %s requested: present a tag", job.kind)
+        uid = None
+        try:
+            while self._clock() < job.deadline:
+                uid = self.reader.read_uid()
+                if uid is not None:
+                    break
+                self._sleep(0.3)
+            if uid is None:
+                log.warning("No tag presented within %.0f s", job.timeout)
+                if job.kind == "write" and job.announce:
                     self.led.error()
-                    return
-                self.uid, self.handled, self.last_seen = uid, True, self._clock()
-                log.info("Tag %s written: %s / %s", hexstr(uid), system, rom)
-                self.led.ok()
+                job.finish(error="no tag was presented in time", timed_out=True)
                 return
-            self._sleep(0.3)
-        log.warning("No tag presented within %.0f s: nothing written", self.cfg.nfc.write_timeout)
-        self.led.error()
+            if job.kind == "write":
+                write_and_verify(self.reader, uid, job.values, self._sleep)
+                result = {"uid": hexstr(uid), "system": job.values[0], "rom": job.values[1]}
+                log.info("Tag %s written: %s / %s", hexstr(uid), job.values[0], job.values[1])
+                if job.announce:
+                    self.led.ok()
+            else:
+                try:
+                    records = tagstore.read_records(self.reader, uid)
+                    result = {"uid": hexstr(uid), "records": records}
+                except NotOurTag as exc:
+                    result = {"uid": hexstr(uid), "records": None, "note": str(exc)}
+        except ReaderError as exc:
+            if job.kind == "write" and job.announce:
+                self.led.error()
+            job.finish(error=str(exc))
+            raise  # let the polling loop count it and re-initialise the reader if needed
+        except TagError as exc:
+            log.error("Tag %s failed: %s", job.kind, exc)
+            if job.kind == "write" and job.announce:
+                self.led.error()
+            job.finish(error=str(exc))
+            return
+        # the tag that was just read/written must not launch its game
+        self.uid, self.handled, self.last_seen = uid, True, self._clock()
+        job.finish(result=result)
 
     # ------------------------------------------------------------------ polling
     def step(self, now=None):
         """One poll cycle. Raises ReaderError when the reader misbehaves."""
         now = self._clock() if now is None else now
-        request = self._take_write()
-        if request:
-            self._do_write(*request)
+        job = self._take_job()
+        if job is not None:
+            self._run_job(job)
             self.first_cycle = False
             return
         uid = self.reader.read_uid()

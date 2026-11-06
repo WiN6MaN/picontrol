@@ -6,6 +6,7 @@ Le fichier est un INI simple ; chaque clé a une valeur par défaut. Les clés i
 """
 
 import configparser
+import ipaddress
 import logging
 import os
 import shlex
@@ -72,7 +73,38 @@ SPEC = {
     },
     "retroarch": {"host": ("str", "127.0.0.1"), "port": ("int", 55355)},
     "logging": {"file": ("str", "/var/log/picontrol.log"), "level": ("str", "INFO")},
+    "web": {
+        "enabled": ("bool", False),
+        "host": ("str", "0.0.0.0"),
+        "port": ("int", 8443),
+        "tls": ("bool", True),
+        "cert_file": ("str", "/etc/picontrol/web.crt"),
+        "key_file": ("str", "/etc/picontrol/web.key"),
+        "password_file": ("str", "/etc/picontrol/web.passwd"),
+        "session_timeout": ("float", 3600.0),
+        "max_login_failures": ("int", 5),
+        "lockout": ("float", 300.0),
+        "allow_public": ("bool", False),
+        "allowed_networks": ("list", ()),
+        "allowed_hosts": ("list", ()),
+    },
 }
+
+# Settings the web interface may change. Deliberately limited to numbers, switches and one choice:
+# commands, paths, pins and web settings are NOT editable from the browser, so a stolen web session can
+# never make the service run an arbitrary command or lock you out.
+# Réglages modifiables depuis le web : seulement nombres, interrupteurs et un choix (jamais commandes,
+# chemins, broches ni réglages web).
+WEB_EDITABLE = frozenset([
+    ("power", "enabled"), ("power", "off_level"), ("power", "debounce"), ("power", "quit_grace"),
+    ("reset", "enabled"), ("reset", "long_press"),
+    ("fan", "enabled"), ("fan", "threshold_on"), ("fan", "threshold_off"), ("fan", "interval"),
+    ("fan", "min_run"),
+    ("led", "enabled"),
+    ("nfc", "enabled"), ("nfc", "poll_interval"), ("nfc", "poll_interval_game"), ("nfc", "remove_delay"),
+    ("nfc", "min_relaunch_interval"), ("nfc", "max_read_attempts"), ("nfc", "launch_at_start"),
+    ("nfc", "quit_on_remove"), ("nfc", "rf_reset_each_poll"), ("nfc", "write_timeout"),
+])
 
 
 class Config(SimpleNamespace):
@@ -83,7 +115,9 @@ class Config(SimpleNamespace):
         def default(kind, value):
             return shlex.split(value) if kind == "cmd" else value  # commands are stored as argument lists
 
-        return cls(**{s: SimpleNamespace(**{k: default(*v) for k, v in keys.items()}) for s, keys in SPEC.items()})
+        cfg = cls(**{s: SimpleNamespace(**{k: default(*v) for k, v in keys.items()}) for s, keys in SPEC.items()})
+        cfg.source = None  # the file the settings came from (None = built-in defaults)
+        return cfg
 
     @classmethod
     def load(cls, path=None):
@@ -108,6 +142,7 @@ class Config(SimpleNamespace):
                 if key not in SPEC[section]:
                     raise ConfigError("unknown key '%s' in [%s]" % (key, section))
                 setattr(getattr(cfg, section), key, _convert(parser, section, key))
+        cfg.source = candidate
         cfg.validate()
         return cfg
 
@@ -134,6 +169,19 @@ class Config(SimpleNamespace):
             raise ConfigError("[logging] unknown level '%s'" % self.logging.level)
         if not self.power.shutdown_command:
             raise ConfigError("[power] shutdown_command must not be empty")
+        web = self.web
+        if not 1 <= web.port <= 65535:
+            raise ConfigError("[web] port must be between 1 and 65535")
+        for key in ("session_timeout", "lockout"):
+            if getattr(web, key) <= 0:
+                raise ConfigError("[web] %s must be > 0" % key)
+        if web.max_login_failures < 1:
+            raise ConfigError("[web] max_login_failures must be >= 1")
+        for network in web.allowed_networks:
+            try:
+                ipaddress.ip_network(network, strict=False)
+            except ValueError:
+                raise ConfigError("[web] allowed_networks: '%s' is not a network (e.g. 192.168.1.0/24)" % network)
 
     @property
     def power_off_level(self):

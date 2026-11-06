@@ -4,13 +4,14 @@
   picontrol tag read                   show the tag in the field
   picontrol tag write SYSTEM ROM       write a tag (or: tag write --current)
   picontrol test led|fan|buttons|nfc   hardware tests
+  picontrol web set-password           set the web interface password
   picontrol doctor                     check the installation
 """
 
 import argparse
 import sys
 
-from . import __version__, doctor, hwtest
+from . import __version__, doctor, hwtest, webauth
 from .config import Config
 from .errors import ConfigError, LaunchError, PicontrolError, ReaderError
 from .launcher import Launcher
@@ -42,6 +43,10 @@ def build_parser():
 
     test = sub.add_parser("test", help="hardware tests")
     test.add_argument("what", choices=("led", "fan", "buttons", "nfc"))
+
+    web = sub.add_parser("web", help="web interface").add_subparsers(dest="web_action", metavar="ACTION")
+    password = web.add_parser("set-password", help="set (or change) the web interface password")
+    password.add_argument("--stdin", action="store_true", help="read the password from standard input")
 
     sub.add_parser("doctor", help="check the installation")
     return parser
@@ -120,6 +125,22 @@ def cmd_tag_write(cfg, args):
         return 0
 
 
+def cmd_web_set_password(cfg, args):
+    if args.stdin:
+        password = sys.stdin.readline().rstrip("\r\n")
+    else:
+        import getpass
+        password = getpass.getpass("New web interface password: ")
+        if password != getpass.getpass("Repeat it: "):
+            print("The two passwords differ.")
+            return 2
+    webauth.save_password(cfg.web.password_file, password)
+    print("Password saved in %s." % cfg.web.password_file)
+    if not cfg.web.enabled:
+        print("The web interface is still off: set 'enabled = true' in the [web] section, then restart the service.")
+    return 0
+
+
 def cmd_doctor(cfg, config_path):
     symbols = {doctor.OK: "[ OK ]", doctor.WARN: "[WARN]", doctor.FAIL: "[FAIL]"}
     failures = 0
@@ -151,6 +172,10 @@ def main(argv=None):
             if args.action == "write":
                 return cmd_tag_write(cfg, args)
             parser.parse_args(["tag", "--help"])
+        if args.command == "web":
+            if args.web_action == "set-password":
+                return cmd_web_set_password(cfg, args)
+            parser.parse_args(["web", "--help"])
         if args.command == "test":
             gpio = _gpio()
             return getattr(hwtest, "test_" + args.what)(cfg, gpio)

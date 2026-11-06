@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import sys
 
-from . import retroarch
+from . import retroarch, webauth
 
 AUTOSTART = "/opt/retropie/configs/all/autostart.sh"
 MARKER = "# >>> picontrol"
@@ -67,6 +67,22 @@ def run_checks(cfg, config_path=None, autostart=AUTOSTART):
     writable = os.access(log_file, os.W_OK) if os.path.exists(log_file) else _writable_dir_for(log_file)
     add(OK if writable else WARN, "Log file writable", log_file)
 
+    if cfg.web.enabled:
+        has_password = webauth.load_password(cfg.web.password_file) is not None
+        add(OK if has_password else FAIL, "Web interface password",
+            cfg.web.password_file if has_password else "run: picontrol web set-password")
+        if cfg.web.tls:
+            have_cert = os.path.exists(cfg.web.cert_file) and os.path.exists(cfg.web.key_file)
+            if have_cert:
+                add(OK, "Web interface certificate", cfg.web.cert_file)
+            else:
+                add(OK if shutil.which("openssl") else FAIL, "Web interface certificate",
+                    "will be created on first start" if shutil.which("openssl") else "openssl is needed to create it")
+        else:
+            add(WARN, "Web interface without HTTPS", "the password travels in clear text on your network (tls = false)")
+        if cfg.web.allow_public:
+            add(WARN, "Web interface open to any address",
+                "allow_public = true: never port-forward this service to the internet")
     try:
         with open(autostart, encoding="utf-8") as handle:
             present = MARKER in handle.read()
