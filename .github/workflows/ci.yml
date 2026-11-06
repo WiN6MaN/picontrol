@@ -25,3 +25,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: shellcheck -x install.sh uninstall.sh scripts/common.sh
+
+  ui:
+    # Browser-level smoke test of the web interface (jsdom against the real server on fake hardware).
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: python -m pip install pytest
+      - run: npm install
+        working-directory: tests/ui
+      - run: python -m pytest tests/test_ui_smoke.py -q

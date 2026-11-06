@@ -86,7 +86,8 @@ def test_shipped_example_config_matches_the_defaults_exactly():
     import os
     path = os.path.join(os.path.dirname(__file__), "..", "config", "picontrol.conf")
     loaded, defaults = Config.load(path), Config.defaults()
-    for section in vars(defaults):
+    from picontrol.config import SPEC
+    for section in SPEC:
         assert vars(getattr(loaded, section)) == vars(getattr(defaults, section)), section
 
 

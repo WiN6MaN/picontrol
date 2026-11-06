@@ -65,3 +65,30 @@ def procs():
 def reset_popen():
     FakePopen.instances = []
     yield
+
+
+class FakeClock:
+    def __init__(self, start=1000.0):
+        self.now = start
+
+    def __call__(self):
+        return self.now
+
+    def advance(self, seconds):
+        self.now += seconds
+
+
+@pytest.fixture
+def clock():
+    return FakeClock()
+
+
+@pytest.fixture
+def service(cfg, gpio, reader, procs):
+    """A real Service wired to the fakes (no web server started)."""
+    from picontrol.service import Service
+    svc = Service(cfg, gpio=gpio, run_command=lambda c: svc.commands.append(list(c)) or 0, popen=FakePopen,
+                  procs=procs, reader=reader, sleep=lambda s: None)
+    svc.commands, svc.sent = [], []
+    svc.retroarch.send = lambda command: svc.sent.append(command) or True
+    return svc

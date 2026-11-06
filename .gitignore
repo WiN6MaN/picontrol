@@ -6,3 +6,5 @@ dist/
 .pytest_cache/
 .venv/
 *.picontrol-bak
+node_modules/
+tests/ui/package-lock.json

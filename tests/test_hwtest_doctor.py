@@ -68,3 +68,22 @@ def test_doctor_flags_problems(cfg, tmp_path):
     assert status["runcommand.sh"] == doctor.FAIL
     assert status["RetroArch network commands"] == doctor.WARN
     assert status["Started from autostart.sh"] == doctor.WARN
+
+
+def test_doctor_web_checks(cfg, tmp_path):
+    cfg.web.enabled = True
+    cfg.web.password_file = str(tmp_path / "web.passwd")
+    cfg.web.cert_file, cfg.web.key_file = str(tmp_path / "c.crt"), str(tmp_path / "c.key")
+    status = by_title(doctor.run_checks(cfg, None, autostart=str(tmp_path / "x")))
+    assert status["Web interface password"] == doctor.FAIL  # enabled without a password
+    (tmp_path / "web.passwd").write_text("pbkdf2_sha256$1$a$b\n")
+    cfg.web.tls = False
+    cfg.web.allow_public = True
+    status = by_title(doctor.run_checks(cfg, None, autostart=str(tmp_path / "x")))
+    assert status["Web interface password"] == doctor.OK
+    assert status["Web interface without HTTPS"] == doctor.WARN
+    assert status["Web interface open to any address"] == doctor.WARN
+
+
+def test_doctor_is_silent_about_the_web_interface_when_it_is_off(cfg, tmp_path):
+    assert not [t for t in by_title(doctor.run_checks(cfg, None, autostart=str(tmp_path / "x"))) if "Web" in t]

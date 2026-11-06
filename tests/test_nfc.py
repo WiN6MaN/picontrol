@@ -6,7 +6,7 @@ import pytest
 
 from fakes import Card, FakePopen, FakeProcs
 from picontrol import tagstore
-from picontrol.errors import LaunchError, ReaderError
+from picontrol.errors import BusyError, LaunchError, ReaderError
 from picontrol.launcher import Launcher
 from picontrol.nfc import NfcService, write_and_verify
 from picontrol.retroarch import RetroArch

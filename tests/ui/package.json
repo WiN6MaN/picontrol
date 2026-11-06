@@ -1,0 +1,7 @@
+{
+  "name": "picontrol-ui-tests",
+  "private": true,
+  "description": "Browser-level smoke test of the Pi Control web interface (jsdom).",
+  "scripts": { "test": "node ui.test.js" },
+  "devDependencies": { "jsdom": "^24.0.0" }
+}

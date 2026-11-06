@@ -72,14 +72,14 @@ def test_reset_long_press_requests_a_tag_write(svc_factory, cfg, procs):
     with open(cfg.paths.runcommand_info, "w") as handle:
         handle.write("nes\nlr\n/home/pi/RetroPie/roms/nes/Zelda II.nes\n")
     service.on_reset_long()
-    assert service.nfc._pending_write[:2] == ("nes", "Zelda II.nes")
+    assert service.nfc._job.values == ["nes", "Zelda II.nes"]
 
 
 def test_reset_long_press_without_a_game_is_refused(svc_factory, gpio, cfg):
     service, made = svc_factory()
     gpio.writes.clear()
     service.on_reset_long()
-    assert service.nfc._pending_write is None
+    assert service.nfc._job is None
     assert any(pin == cfg.pins.led for pin, _ in gpio.writes)  # error blink
 
 
@@ -154,3 +154,23 @@ def test_service_end_to_end(svc_factory, cfg, gpio, sim, reader):
         thread.join(8)
     assert gpio.levels[cfg.pins.led] == 0
     assert gpio.levels[cfg.pins.fan] == 1  # fail-safe: fan on when the controller stops
+
+
+def test_restart_request_stops_run_so_the_autostart_loop_relaunches_it(svc_factory):
+    service, made = svc_factory()
+    stop = threading.Event()
+    thread = threading.Thread(target=service.run, args=(stop, False))
+    thread.start()
+    time.sleep(0.2)
+    service.request_restart()
+    thread.join(8)
+    assert not thread.is_alive() and service.restart_requested and stop.is_set()
+
+
+def test_reboot_and_shutdown_use_their_own_commands(svc_factory):
+    service, made = svc_factory()
+    service.reboot()
+    assert made["commands"] == [["sudo", "-n", "reboot"]]
+    service2, made2 = svc_factory()
+    service2.shutdown("test")
+    assert made2["commands"] == [["sudo", "-n", "shutdown", "-h", "now"]]

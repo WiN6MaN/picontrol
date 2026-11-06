@@ -74,3 +74,33 @@ def test_tag_read_of_a_foreign_tag(conf, sim, fast_reader, capsys):
     sim.place(Card([8, 8, 8, 8]))
     assert cli.main(["-c", conf, "tag", "read"]) == 0
     assert "no Pi Control data" in capsys.readouterr().out
+
+
+# ------------------------------------------------------------------ web interface commands
+def test_web_set_password_from_stdin(conf, tmp_path, monkeypatch, capsys):
+    import io
+    from picontrol import webauth
+    path = tmp_path / "web.passwd"
+    with open(conf, "a") as handle:
+        handle.write("[web]\npassword_file = %s\n" % path)
+    monkeypatch.setattr("sys.stdin", io.StringIO("a good long password\n"))
+    assert cli.main(["-c", conf, "web", "set-password", "--stdin"]) == 0
+    out = capsys.readouterr().out
+    assert "Password saved" in out and "still off" in out  # reminds that [web] enabled = true is still needed
+    assert webauth.verify_password("a good long password", webauth.load_password(str(path)))
+
+
+def test_web_set_password_rejects_short_passwords(conf, tmp_path, monkeypatch, capsys):
+    import io
+    with open(conf, "a") as handle:
+        handle.write("[web]\npassword_file = %s\n" % (tmp_path / "pw"))
+    monkeypatch.setattr("sys.stdin", io.StringIO("short\n"))
+    assert cli.main(["-c", conf, "web", "set-password", "--stdin"]) == 2  # invalid input, like an invalid config
+    assert "at least" in capsys.readouterr().err and not (tmp_path / "pw").exists()
+
+
+def test_web_set_password_interactive_mismatch(conf, monkeypatch, capsys):
+    answers = iter(["one long password", "another long password"])
+    monkeypatch.setattr("getpass.getpass", lambda prompt="": next(answers))
+    assert cli.main(["-c", conf, "web", "set-password"]) == 2
+    assert "differ" in capsys.readouterr().out
