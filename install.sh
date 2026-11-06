@@ -86,6 +86,13 @@ install_config() {
   run cp "$SRC_DIR/config/picontrol.conf" "$ETC_DIR/picontrol.conf.dist"
 }
 
+# The web interface saves settings and the password hash here, so the RetroPie user owns the folder.
+own_config_dir() {
+  if [ "$(id -u)" -eq 0 ] && id "$RUN_USER" >/dev/null 2>&1; then
+    run chown -R "$RUN_USER" "$ETC_DIR"
+  fi
+}
+
 prepare_log() {
   run touch "$LOG_FILE"
   if [ "$(id -u)" -eq 0 ] && id "$RUN_USER" >/dev/null 2>&1; then
@@ -158,6 +165,7 @@ check_python
 install_deps
 install_code
 install_config
+own_config_dir
 prepare_log
 if [ "$NO_RETROARCH" = 1 ]; then
   say "Skipping retroarch.cfg"
