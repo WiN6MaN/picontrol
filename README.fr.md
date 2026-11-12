@@ -11,7 +11,7 @@ Présentez une « cartouche » NFC et son jeu démarre. Basculez l'interrupteur 
 
 - **Interrupteur power** - arrêt propre : RetroArch est invité à quitter (et sauvegarder) avant l'extinction du Pi.
 - **Bouton reset** - appui court : reset du jeu ; appui long : écrit le jeu en cours sur le prochain tag NFC.
-- **Cartouches NFC** - détection en direct (PN532 en SPI logiciel), compatible avec les tags écrits par Pi Control d'origine.
+- **Cartouches NFC** - détection en direct (PN532 en SPI logiciel) des tags MIFARE Classic et NTAG ; compatible avec les tags écrits par Pi Control d'origine, et lisibles par n'importe quelle application NFC de téléphone.
 - **Ventilateur** - hystérésis en température avec durée de marche minimale, et sécurité : ventilateur ALLUMÉ si la température est illisible.
 - **LED** - pilotée directement par son GPIO (pas de port série, aucune modification de `config.txt`).
 - **Interface web (optionnelle)** - état, tags NFC avec recherche de jeux, réglages, redémarrage/arrêt, depuis n'importe quel appareil de votre réseau local. Désactivée par défaut, sans mot de passe par défaut, refuse tout ce qui vient de l'extérieur de votre réseau.
@@ -22,14 +22,14 @@ Présentez une « cartouche » NFC et son jeu démarre. Basculez l'interrupteur 
 
 ## État
 
-**Alpha (0.1.0).** Toute la pile est testée contre un simulateur du PN532 et d'un tag MIFARE Classic, mais elle **n'a pas encore été validée sur du vrai matériel**. Lancez `picontrol doctor` et `picontrol test ...` après l'installation, et signalez ce que vous observez. Voir l'[architecture](docs/fr/architecture.md) pour les limites connues.
+**Bêta (0.3.0).** Les boutons, la LED, le ventilateur et l'interface web ont été validés sur un vrai Raspberry Pi 3B avec la carte Pi Control Rev 5. Le NFC est testé contre un simulateur du PN532 et de tags MIFARE Classic et NTAG ; la prise en charge des NTAG est nouvelle en 0.3.0 et **reste à confirmer sur de vrais tags**. Lancez `picontrol doctor` et `picontrol test ...` après l'installation, et signalez ce que vous observez. Voir l'[architecture](docs/fr/architecture.md) pour les limites connues.
 
 ## Démarrage rapide
 
 Sur un Raspberry Pi 3B avec **RetroPie 4.8** et la carte Pi Control montée :
 
 ```
-git clone https://github.com/<vous>/picontrol.git
+git clone https://github.com/WiN6MaN/picontrol.git
 cd picontrol
 sudo ./install.sh --dry-run    # voir ce qui serait modifié
 sudo ./install.sh

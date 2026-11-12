@@ -31,20 +31,24 @@ Les commandes attendent le lecteur (le service le libère entre deux sondages) :
 ## Compatibilité des tags
 
 - Les tags écrits par Pi Control d'origine **fonctionnent tels quels**, et ceux écrits ici fonctionnent avec lui.
-- Type : MIFARE Classic 1K avec les clés par défaut (UID de 4 octets). Les tags étrangers (autres clés), vierges ou NTAG sont détectés et **ignorés**, jamais lancés.
-- Seuls les blocs de données sont écrits. Le secteur 0 et les « trailers » de secteur (clés et droits d'accès) ne sont jamais modifiés.
+- Types pris en charge, détectés automatiquement : **MIFARE Classic 1K** (UID de 4 octets, les tags du kit, clés par défaut) et **NTAG213 / NTAG215 / NTAG216 / MIFARE Ultralight** (UID de 7 octets). Les tags vierges, ceux qui contiennent autre chose (une adresse web écrite par un téléphone, par exemple) et les familles non prises en charge (tags à autres clés, NTAG 424 DNA, DESFire) sont détectés et **ignorés**, jamais lancés.
+- Seules les données utilisateur sont écrites. Sur un MIFARE Classic, le secteur 0 et les « trailers » de secteur (clés et droits d'accès) ne sont jamais modifiés ; sur un NTAG, l'UID, les octets de verrouillage, le conteneur de capacités et les pages de configuration ne le sont jamais.
+- Capacité : un NTAG213 contient 144 octets, un NTAG215 496, un NTAG216 872 - largement assez pour un système et un nom de ROM (environ 40 octets). Si un nom est trop long pour le tag, l'écriture est refusée avec un message clair.
 
 ### Format sur le tag
 
+Le contenu est un message NDEF standard (NFC Forum) formé de deux enregistrements Texte (le système, puis la ROM) : n'importe quelle application NFC peut le lire - et écrire des tags compatibles :
+
 ```
-03 <longueur de la charge> <91 | D1>         en-tête (91 = deux enregistrements ou plus)
-par enregistrement :  01 <longueur+3> 54 02 'e' 'n' <texte> <terminateur>
-terminateur :  11 ou 51 = un autre enregistrement suit, FE = dernier enregistrement
+03 <longueur>                                        TLV NDEF (longueur = le message ci-dessous)
+<en-tête> 01 <n+3> 54 02 'e' 'n' <système, n octets>   premier enregistrement Texte (en-tête 91 ; D1 s'il est seul)
+<en-tête> 01 <m+3> 54 02 'e' 'n' <ROM, m octets>       dernier enregistrement Texte (en-tête 51 ; 11 pour un enregistrement intermédiaire)
+FE                                                   terminateur
 ```
 
-Les données commencent au bloc 4 et sautent un bloc sur quatre (les trailers) : la capacité est de 45 blocs = 720 octets, mais le conteneur est limité à 255 octets de charge utile.
+`<en-tête>` est l'en-tête d'enregistrement NDEF, `54` le type « T » (Texte) et `02` l'octet d'état (UTF-8, code de langue de deux lettres). Les enregistrements Texte écrits par d'autres applications avec un autre code de langue sont lus aussi. Sur un MIFARE Classic, les données commencent au bloc 4 et sautent un bloc sur quatre (les trailers) ; sur un NTAG, elles commencent à la page 4. Le message est limité à 254 octets.
 
-Une amélioration par rapport au décodeur d'origine : celui-ci repérait les enregistrements en cherchant les **valeurs d'octet** des terminateurs dans le texte, si bien qu'un « Q » majuscule (0x51) dans un nom coupait l'enregistrement. Ce lecteur parcourt les enregistrements selon leur longueur déclarée : tous les caractères sont sûrs.
+Une amélioration par rapport au décodeur d'origine : celui-ci repérait les enregistrements en cherchant les **valeurs d'octet** des en-têtes dans le texte, si bien qu'un « Q » majuscule (0x51) dans un nom coupait l'enregistrement. Ce lecteur parcourt les enregistrements selon leur longueur déclarée : tous les caractères sont sûrs.
 
 ## Comportement pendant un jeu
 
@@ -55,4 +59,4 @@ Une amélioration par rapport au décodeur d'origine : celui-ci repérait les en
 
 ## Non pris en charge
 
-Les tags NTAG/Ultralight, les tags à clés non standard, et l'écriture de tags depuis la puce NFC d'un téléphone.
+Les tags à clés non standard, les NTAG 424 DNA et DESFire, et l'écriture sur des tags verrouillés (en lecture seule). Un téléphone reste un bon complément : n'importe quelle application NFC lit ces tags et en écrit de compatibles.

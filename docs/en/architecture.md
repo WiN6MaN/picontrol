@@ -22,9 +22,9 @@ Each worker thread is supervised on its own: an exception is logged and the work
 |---|---|
 | `config.py` | INI loading, defaults, strict validation |
 | `gpio.py` | Thin `RPi.GPIO` wrapper (imported lazily, so everything is testable off-Pi) |
-| `pn532.py` | PN532 driver: software SPI, frames, checksums, MIFARE auth/read/write |
+| `pn532.py` | PN532 driver: software SPI, frames, checksums, MIFARE auth/read/write, NTAG page write |
 | `tagformat.py` | Pure encode/decode of the on-tag container |
-| `tagstore.py` | Reading/writing records on a MIFARE Classic 1K layout |
+| `tagstore.py` | Reading/writing records on MIFARE Classic 1K and NTAG/Ultralight tags (family detected automatically) |
 | `nfc.py` | The tag state machine, write requests, the supervised polling loop |
 | `launcher.py` | ROM validation, stopping/starting games and EmulationStation |
 | `buttons.py`, `fan.py`, `led.py` | Small state machines driven by an injected clock |
@@ -51,7 +51,7 @@ Each worker thread is supervised on its own: an exception is logged and the work
 
 ## Testing strategy
 
-The test-suite (more than 350 tests, pytest) exercises the whole stack against a **simulator** of the PN532 and a MIFARE Classic tag wired to the same software-SPI pins: bit-banged transfers, frames and checksums, ACK/response, authentication, block read/write, injected faults (silent chip, corrupted answers). The installer is run for real in a sandbox, and the web page is driven in a browser-like environment (jsdom) against the real server on fake hardware - which caught a bug no Python test could see. Buttons and fan are driven by an injected clock, so no test waits in real time.
+The test-suite (more than 350 tests, pytest) exercises the whole stack against a **simulator** of the PN532 and MIFARE Classic and NTAG tags wired to the same software-SPI pins: bit-banged transfers, frames and checksums, ACK/response, authentication, block read/write, injected faults (silent chip, corrupted answers). The installer is run for real in a sandbox, and the web page is driven in a browser-like environment (jsdom) against the real server on fake hardware - which caught a bug no Python test could see. Buttons and fan are driven by an injected clock, so no test waits in real time.
 
 The simulator reproduces the protocol as the original driver used it, but it is not the real chip: hardware validation remains the final step, which is why `picontrol test` and `picontrol doctor` exist.
 
@@ -59,5 +59,5 @@ The simulator reproduces the protocol as the original driver used it, but it is 
 
 - A tag launch stops and restarts EmulationStation (inherent to launching from outside).
 - Reset and quit only affect RetroArch-based emulators.
-- MIFARE Classic 1K only; 255 bytes of payload per tag.
+- MIFARE Classic 1K and NTAG/Ultralight tags only; 254 bytes of message per tag.
 - The power switch has one behaviour (immediate graceful shutdown). The original's "soft power" mode (switch off and on again within seconds to reload) is not implemented.

@@ -61,13 +61,30 @@ async function until(fn, what, ms = 8000) {
   click(button("Read a tag"));
   await until(() => /Zelda|Super Mario Bros\.nes/.test(text()) && /01020304/.test(text()), "read result", 12000); ok("the tag is read back through the page");
 
-  // settings tab
+  // settings tab: grouped, described, with units, defaults and a save bar
   click(button("Settings"));
   await until(() => doc.querySelector(".setting"), "settings form"); ok("settings form is built");
-  const row = [...doc.querySelectorAll(".setting")].find((r) => r.querySelector("code").textContent === "fan.threshold_on");
-  row.querySelector("input").value = "66";
+  const rows = [...doc.querySelectorAll(".setting")];
+  if (rows.length < 20) throw new Error("expected at least 20 settings, got " + rows.length);
+  if (!rows.every((r) => r.querySelector(".desc").textContent.length > 20)) throw new Error("a setting has no description");
+  if (doc.querySelectorAll(".group h2").length !== 5) throw new Error("expected 5 groups");
+  if (!/The fan starts when the CPU reaches this temperature\./.test(text())) throw new Error("description missing");
+  if (!/Start temperature/.test(text()) || !/Default: 60 °C/.test(text())) throw new Error("label or default missing");
+  ok("every setting has a label, a description and a default; 5 groups");
+  if (!/No unsaved changes/.test(text())) throw new Error("save bar should start clean");
+  const row = rows.find((r) => r.querySelector("code").textContent === "fan.threshold_on");
+  const field = row.querySelector("input");
+  field.value = "66"; field.dispatchEvent(new window.Event("input", { bubbles: true }));
+  await until(() => /1 unsaved change/.test(text()) && row.classList.contains("changed"), "dirty marker"); ok("an edited setting is marked and counted");
+  click(row.querySelector("button.link"));
+  await until(() => field.value === "60" && /No unsaved changes/.test(text()), "reset to default"); ok("'Reset to default' restores the default value");
+  field.value = "66"; field.dispatchEvent(new window.Event("input", { bubbles: true }));
   click(button("Save"));
-  await until(() => /Saved\. Restart the service/.test(text()), "saved message"); ok("a setting is saved");
+  await until(() => /Saved\. Restart the service/.test(text()) && /No unsaved changes/.test(text()), "saved message"); ok("a setting is saved");
+  field.value = "abc"; field.dispatchEvent(new window.Event("input", { bubbles: true }));
+  await until(() => row.classList.contains("invalid"), "invalid marker"); ok("an invalid number is flagged");
+  click(button("Discard changes"));
+  await until(() => field.value === "66" && !row.classList.contains("invalid"), "discard"); ok("discarding goes back to the saved value");
 
   // system tab: log is shown, a dangerous action asks for confirmation and does nothing when refused
   click(button("System"));

@@ -22,7 +22,11 @@ To stop the running service while you experiment: `pkill -f "python3 -m picontro
 | Reset does nothing | The game is not a RetroArch core, or network commands are off | `doctor`; try a RetroArch-based system |
 | `picontrol test nfc`: PN532 not found | Mode switches not on SPI, loose cable, wrong pins, clone module | Set the switches to SPI **and power-cycle**; check the 6-pin cable and `[pins]` |
 | "authentication refused - foreign tag" | The tag has non-default keys | Use a tag that is blank or written by Pi Control |
-| Tag detected but "ignored" | Blank tag, NTAG, or invalid content | The log says why; `picontrol tag read` |
+| Tag detected but "ignored" | Blank tag, a tag holding something else (a web address, for instance), or invalid content | The log says why; `picontrol tag read` |
+| "unsupported tag type" | A tag family the reader cannot handle (NTAG 424 DNA, DESFire, 7-byte MIFARE Classic) | Use MIFARE Classic 1K or NTAG213/215/216 tags |
+| "too long for this tag" | The ROM name does not fit in this tag's memory | Use a larger NTAG (215 or 216) or a shorter file name |
+| "is the tag locked?" | The tag is read-only | Use another tag: a locked tag cannot be rewritten |
+| "not NDEF-formatted" | An unformatted tag (no capability container) | Format it once with a phone NFC app ("format tag"), then write it again |
 | "ROM not found" | System or file name does not match the ROM folder | Names are case-sensitive: `picontrol tag read` then compare with `ls ~/RetroPie/roms/<system>` |
 | Game launches twice or keeps relaunching | Tag at the edge of the field, flickering | Seat the tag properly; raise `remove_delay`; send a `--debug` log if it persists |
 | "The reader is busy" | Another command or the service holds the reader | Retry; commands wait up to 20 s |

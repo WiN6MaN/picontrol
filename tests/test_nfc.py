@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from fakes import Card, FakePopen, FakeProcs
+from fakes import Card, FakePopen, FakeProcs, NtagCard
 from picontrol import tagstore
 from picontrol.errors import BusyError, LaunchError, ReaderError
 from picontrol.launcher import Launcher
@@ -240,3 +240,32 @@ def test_run_loop_yields_the_reader_to_other_processes(service, cfg, reader, sim
     assert wait_until(lambda: len(sim.commands) > before)
     stop.set()
     thread.join(5)
+
+
+# ---------------------------------------------------------------- NTAG tags end to end
+UID7 = [0x04, 0xAF, 0x38, 0x62, 0xA1, 0x48, 0x80]
+
+
+def test_an_ntag_cartridge_launches_its_game(service, reader, sim, launcher):
+    sim.place(NtagCard(UID7))
+    tagstore.write_records(reader, reader.read_uid(), ["nes", "Super Mario Bros.nes"])
+    sim.card_state = "idle"
+    for t in (0.0, 0.05, 0.1):
+        service.step(now=t)
+    assert launcher.launched == [("nes", "Super Mario Bros.nes")]  # once, although the tag stayed
+
+
+def test_an_ntag_can_be_written_with_the_current_game(service, sim, launcher):
+    sim.place(NtagCard(UID7))
+    service.request_write_current()
+    service.step()
+    sim.card_state = "idle"
+    assert tagstore.read_records(service.reader, service.reader.read_uid()) == ["nes", "Zelda II.nes"]
+    assert launcher.launched == []
+
+
+def test_a_blank_ntag_is_ignored_without_retries(service, sim, launcher):
+    sim.place(NtagCard(UID7))
+    for t in (0.0, 0.01, 0.02):
+        service.step(now=t)
+    assert launcher.launched == [] and service.handled and service.attempts == 1

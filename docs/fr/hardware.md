@@ -45,7 +45,7 @@ Le PN532 est relié à des broches GPIO ordinaires, pas au bus SPI matériel du 
 
 - Réglez les **interrupteurs de mode du module sur SPI avant de le mettre sous tension** (ils sont lus à la mise sous tension). Sur la carte V3 courante, c'est généralement `S1 = OFF`, `S2 = ON` ; vérifiez la sérigraphie ou le manuel du vendeur pour votre module.
 - Les vrais modules PN532 V3 sont recommandés : l'auteur du kit signale de mauvais clones, qui peuvent causer des défaillances intermittentes.
-- Tags pris en charge : **MIFARE Classic 1K** (UID de 4 octets) avec les clés par défaut, comme dans le kit. Les NTAG et les autres types ne sont pas pris en charge.
+- Tags pris en charge : **MIFARE Classic 1K** (UID de 4 octets) avec les clés par défaut, comme dans le kit, et **NTAG213 / NTAG215 / NTAG216** ou MIFARE Ultralight (UID de 7 octets). Les autres familles de tags ne sont pas prises en charge.
 
 ## Interrupteur, réveil et LED
 

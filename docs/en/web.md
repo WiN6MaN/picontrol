@@ -24,7 +24,7 @@ The service refuses to start the web part without a password, and logs why. The 
 |---|---|
 | Status | Temperature, fan, power switch, running game, NFC reader and tag, uptimes. Refreshes every 3 seconds |
 | NFC tags | Read a tag; write a tag by choosing a system and searching your games; write the running game |
-| Settings | Change the safe settings (see below); a banner reminds you to restart the service |
+| Settings | Change the safe settings, grouped by function, each with an explanation, its unit and its default value; a bar shows the unsaved changes and offers to restart the service |
 | System | Restart the service, reboot or shut down the Pi (each asks for confirmation), read the log |
 
 The interface is in English or French (button at the top, remembered by the browser).

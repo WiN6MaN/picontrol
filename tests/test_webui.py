@@ -65,7 +65,7 @@ def test_every_translation_key_used_in_the_code_exists():
 def test_no_translation_is_left_untranslated():
     blocks = language_blocks()
     pairs = zip(re.findall(r'(\w+): "((?:[^"\\]|\\.)*)"', blocks["en"]), re.findall(r'(\w+): "((?:[^"\\]|\\.)*)"', blocks["fr"]))
-    same = [k for (k, en), (_, fr) in pairs if en == fr and en not in ("Pi Control", "Version", "UID", "ON", "OFF", "ROM")]
+    same = [k for (k, en), (_, fr) in pairs if en == fr and en not in ("Pi Control", "Version", "UID", "ON", "OFF", "ROM", "LED")]
     assert same == []
 
 

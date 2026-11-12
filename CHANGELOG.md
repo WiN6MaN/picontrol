@@ -2,6 +2,15 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). / Format inspiré de Keep a Changelog.
 
+## [0.3.0] - 2026-11-10
+
+- NTAG213 / NTAG215 / NTAG216 and MIFARE Ultralight tags (7-byte UID) are now supported, next to MIFARE Classic 1K; the family is detected automatically and protected areas are never written.
+  / Les tags NTAG213 / NTAG215 / NTAG216 et MIFARE Ultralight (UID de 7 octets) sont désormais pris en charge, avec le MIFARE Classic 1K ; la famille est détectée automatiquement et les zones protégées ne sont jamais écrites.
+- The tag decoder now follows the NDEF standard: Text records written by phone apps (any language code) are read, other NDEF content (a web address, for instance) is refused with a clear message.
+  / Le décodeur de tags suit désormais le standard NDEF : les enregistrements Texte écrits par des applications de téléphone (tout code de langue) sont lus, les autres contenus NDEF (une adresse web, par exemple) sont refusés avec un message clair.
+- Web interface, Settings tab redesigned: grouped by function, a label, an explanation, a unit and the default value for every setting, switches, "reset to default", a save bar with the number of unsaved changes; value ranges are now enforced by the server.
+  / Interface web, onglet Réglages repensé : regroupé par fonction, un libellé, une explication, une unité et la valeur par défaut pour chaque réglage, interrupteurs, « valeur par défaut », barre d'enregistrement avec le nombre de changements non enregistrés ; les plages de valeurs sont désormais imposées par le serveur.
+
 ## [0.2.0] - 2026-11-04
 
 - Optional web interface (off by default, no default password, local network only, HTTPS with a self-signed certificate): status, NFC tag read/write with game search, safe settings editor, restart/reboot/shutdown, log viewer; English and French.
@@ -12,6 +21,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). / Format inspir
   / Nouvelle commande : `picontrol web set-password` ; `picontrol doctor` vérifie les réglages web. Les opérations NFC sont des tâches traitées par le thread NFC.
 - 350+ tests, including a browser-level test of the page (jsdom) in CI.
   / Plus de 350 tests, dont un test de la page de type navigateur (jsdom) en CI.
+- `scripts/personalize.sh` makes a downloaded copy yours (names, license holder, commit authors); `.gitattributes` pins Unix line endings.
+  / `scripts/personalize.sh` personnalise une copie téléchargée (noms, titulaire de la licence, auteur des commits) ; `.gitattributes` impose les fins de ligne Unix.
 
 ## [0.1.0] - 2026-11-04
 

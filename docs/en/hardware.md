@@ -45,7 +45,7 @@ The PN532 is wired to ordinary GPIO pins, not to the Pi's hardware SPI bus (GPIO
 
 - Set the module's **mode switches to SPI before applying power** (the switches are read at power-up). On the common V3 board this is usually `S1 = OFF`, `S2 = ON`; check the silkscreen or the seller's manual for your module.
 - Genuine PN532 V3 boards are recommended: the kit's author reports poor clones, which can cause intermittent failures.
-- Supported tags: **MIFARE Classic 1K** (4-byte UID) with default keys, as shipped with the kit. NTAG and other tag types are not supported.
+- Supported tags: **MIFARE Classic 1K** (4-byte UID) with default keys, as shipped with the kit, and **NTAG213 / NTAG215 / NTAG216** or MIFARE Ultralight (7-byte UID). Other tag families are not supported.
 
 ## Power switch, wake-up and LED
 

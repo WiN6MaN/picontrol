@@ -11,7 +11,7 @@ Present an NFC "cartridge" and its game starts. Flip the power switch and the co
 
 - **Power switch** - graceful shutdown: RetroArch is asked to quit (and save) before the Pi powers off.
 - **Reset button** - short press resets the game, long press writes the running game to the next NFC tag.
-- **NFC cartridges** - live tag detection (PN532 over software SPI), compatible with tags written by the original Pi Control.
+- **NFC cartridges** - live tag detection (PN532 over software SPI) for MIFARE Classic and NTAG tags; compatible with tags written by the original Pi Control, and readable by any NFC app on a phone.
 - **Fan** - temperature hysteresis with a minimum run time, and a fail-safe: fan ON if the temperature cannot be read.
 - **LED** - driven straight from its GPIO (no serial port, no `config.txt` change).
 - **Web interface (optional)** - status, NFC tags with game search, settings, restart/shutdown, from any device on your local network. Off by default, no default password, refuses anything from outside your network.
@@ -22,14 +22,14 @@ Present an NFC "cartridge" and its game starts. Flip the power switch and the co
 
 ## Status
 
-**Alpha (0.1.0).** The whole stack is tested against a simulator of the PN532 and of a MIFARE Classic tag, but it has **not yet been validated on real hardware**. Run `picontrol doctor` and `picontrol test ...` after installing, and please report what you observe. See [architecture](docs/en/architecture.md) for the known limits.
+**Beta (0.3.0).** The buttons, LED, fan and web interface have been validated on a real Raspberry Pi 3B with the Pi Control Rev 5 board. NFC is tested against a simulator of the PN532 and of MIFARE Classic and NTAG tags; NTAG support is new in 0.3.0 and **still has to be confirmed on real tags**. Run `picontrol doctor` and `picontrol test ...` after installing, and please report what you observe. See [architecture](docs/en/architecture.md) for the known limits.
 
 ## Quick start
 
 On a Raspberry Pi 3B with **RetroPie 4.8** and the Pi Control board assembled:
 
 ```
-git clone https://github.com/<you>/picontrol.git
+git clone https://github.com/WiN6MaN/picontrol.git
 cd picontrol
 sudo ./install.sh --dry-run    # see what would change
 sudo ./install.sh

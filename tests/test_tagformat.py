@@ -80,3 +80,35 @@ def test_encode_rejects_bad_input():
 def test_decode_rejects_garbage(bad):
     with pytest.raises(NotOurTag):
         tagformat.decode(bad)
+
+
+def test_the_container_is_a_standard_ndef_message():
+    data = tagformat.encode(["nes", "Zelda.nes"])
+    assert data[0] == 0x03 and data[1] == len(data) - 3  # TLV length counts the message, not the final FE
+    assert data[2] == 0x91 and data[-1] == 0xFE
+    assert tagformat.encode(["only"])[2] == 0xD1  # a single record is MB+ME
+    assert tagformat.encode(["a", "b", "c"]).count(bytes([0x11])) >= 1  # middle record header
+
+
+def test_text_records_with_other_language_codes_are_read():
+    message = bytes([0x91, 0x01, 1 + 5 + 3, 0x54, 0x05]) + b"fr-CA" + b"nes" + bytes([0x51, 0x01, 1 + 2 + 5, 0x54, 0x02]) + b"en" + b"a.nes"
+    data = bytes([0x03, len(message)]) + message + bytes([0xFE])
+    assert tagformat.decode(data) == ["nes", "a.nes"]
+
+
+@pytest.mark.parametrize("bad, fragment", [
+    (bytes([0x03, 0x00, 0xFE]), "empty"),
+    (bytes([0x03, 0xFF, 0x91]) + bytes(300), "too long"),
+    (bytes([0x03, 0x0B, 0xD1, 0x01, 0x07, 0x55, 0x04]) + b"ab.com" + bytes([0xFE]), "not a Text record"),
+    (bytes([0x03, 0x07, 0x81, 0x01, 0x04, 0x54, 0x02, 0x65, 0x6E, 0x61, 0xFE]), "unexpected NDEF record header"),
+    (bytes([0x03, 0x08, 0xD1, 0x01, 0x04, 0x54, 0x82, 0x65, 0x6E, 0x61, 0xFE]), "UTF-16"),
+])
+def test_other_ndef_content_is_refused_clearly(bad, fragment):
+    with pytest.raises(NotOurTag, match=fragment):
+        tagformat.decode(bad)
+
+
+def test_longest_message_stays_below_the_extended_length_marker():
+    assert tagformat.MAX_PAYLOAD == 254
+    with pytest.raises(ValueError):
+        tagformat.encode(["x" * 120, "y" * 130])

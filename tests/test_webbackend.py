@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from fakes import Card
+from fakes import Card, NtagCard
 from picontrol import tagstore
 from picontrol.config import Config
 from picontrol.errors import ApiError
@@ -129,10 +129,26 @@ def sim_uid(sim, backend):
     return backend.service.nfc.reader.read_uid()
 
 
+def test_write_then_read_an_ntag_through_the_web_backend(backend, nfc_thread, sim, library):
+    sim.place(NtagCard([0x04, 0xAF, 0x38, 0x62, 0xA1, 0x48, 0x80]))
+    assert backend.tag("write", "nes", "Zelda.nes")["uid"] == "04af3862a14880"
+    sim.card_state = "idle"
+    assert backend.tag("read") == {"uid": "04af3862a14880", "records": ["nes", "Zelda.nes"]}
+
+
+def test_a_too_small_tag_is_reported_not_crashed(backend, nfc_thread, sim, library):
+    sim.place(NtagCard([0x04, 1, 2, 3, 4, 5, 6], size=48))
+    long_name = "L" * 100 + ".nes"
+    open(os.path.join(library, "nes", long_name), "w").close()
+    with pytest.raises(ApiError) as info:
+        backend.tag("write", "nes", long_name)
+    assert info.value.status == 422 and "too long for this tag" in str(info.value)
+
+
 def test_reading_a_foreign_tag_reports_a_note(backend, nfc_thread, sim):
     sim.place(Card([7, 7, 7, 7]))
     result = backend.tag("read")
-    assert result["records"] is None and result["uid"] == "07070707" and "Pi Control" in result["note"]
+    assert result["records"] is None and result["uid"] == "07070707" and "NDEF" in result["note"]
 
 
 def test_write_validates_the_rom_before_touching_the_reader(backend, nfc_thread, sim, library):

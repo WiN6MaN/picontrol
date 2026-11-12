@@ -73,7 +73,7 @@ def test_tag_read_without_a_tag(conf, sim, fast_reader, monkeypatch, capsys):
 def test_tag_read_of_a_foreign_tag(conf, sim, fast_reader, capsys):
     sim.place(Card([8, 8, 8, 8]))
     assert cli.main(["-c", conf, "tag", "read"]) == 0
-    assert "no Pi Control data" in capsys.readouterr().out
+    assert "no NDEF message" in capsys.readouterr().out
 
 
 # ------------------------------------------------------------------ web interface commands

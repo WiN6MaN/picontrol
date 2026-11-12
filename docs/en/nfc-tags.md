@@ -31,20 +31,24 @@ The commands wait for the reader (the service releases it between polls), so the
 ## Tag compatibility
 
 - Tags written by the original Pi Control **work unchanged**, and tags written here work with it.
-- Type: MIFARE Classic 1K with default keys (4-byte UID). Foreign tags (other keys), blank tags and NTAG tags are detected and **ignored**, never launched.
-- Only data blocks are written. Sector 0 and the sector trailers (keys and access bits) are never touched.
+- Supported types, detected automatically: **MIFARE Classic 1K** (4-byte UID, the tags of the kit, default keys) and **NTAG213 / NTAG215 / NTAG216 / MIFARE Ultralight** (7-byte UID). Blank tags, tags holding something else (a web address written by a phone, for instance) and unsupported families (tags with other keys, NTAG 424 DNA, DESFire) are detected and **ignored**, never launched.
+- Only user data is written. On a MIFARE Classic, sector 0 and the sector trailers (keys and access bits) are never touched; on an NTAG, the UID, lock bytes, capability container and configuration pages are never touched.
+- Capacity: an NTAG213 holds 144 bytes, an NTAG215 496, an NTAG216 872 - plenty for a system and a ROM name (about 40 bytes). If a name is too long for the tag, writing is refused with a clear message.
 
 ### On-tag format
 
+The content is a standard NFC Forum NDEF message holding two Text records (the system, then the ROM), so any NFC app can read it - and write compatible tags:
+
 ```
-03 <payload length> <91 | D1>                header (91 = two or more records)
-per record:  01 <length+3> 54 02 'e' 'n' <text> <terminator>
-terminator:  11 or 51 = another record follows, FE = last record
+03 <length>                                          NDEF TLV (length = the message below)
+<header> 01 <n+3> 54 02 'e' 'n' <system, n bytes>    first Text record (header 91; D1 if it is alone)
+<header> 01 <m+3> 54 02 'e' 'n' <ROM, m bytes>       last Text record (header 51; 11 for a middle one)
+FE                                                   terminator
 ```
 
-Data starts at block 4 and skips every fourth block (the trailers): capacity is 45 blocks = 720 bytes, but the container is limited to 255 bytes of payload.
+`<header>` is the NDEF record header, `54` the type "T" (Text) and `02` the status byte (UTF-8, two-letter language code). Text records written by other apps with another language code are read too. On a MIFARE Classic the data starts at block 4 and skips every fourth block (the trailers); on an NTAG it starts at page 4. The message is limited to 254 bytes.
 
-One improvement over the original decoder: it located records by looking for the terminator **byte values** inside the text, so a capital `Q` (0x51) in a name cut the record short. This reader walks the records by their declared length, so every character is safe.
+One improvement over the original decoder: it located records by looking for the header **byte values** inside the text, so a capital `Q` (0x51) in a name cut the record short. This reader walks the records by their declared length, so every character is safe.
 
 ## Behaviour while a game runs
 
@@ -55,4 +59,4 @@ One improvement over the original decoder: it located records by looking for the
 
 ## Not supported
 
-NTAG/Ultralight tags, tags with non-default keys, and writing tags from a phone's NFC chip.
+Tags with non-default keys, NTAG 424 DNA and DESFire tags, and writing to locked (read-only) tags. Phones are fine as a companion: any NFC app can read these tags and write compatible ones.

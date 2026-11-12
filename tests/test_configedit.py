@@ -86,3 +86,34 @@ def test_editable_settings_listing():
     assert items["fan.threshold_on"]["value"] == 60.0 and items["fan.threshold_on"]["type"] == "float"
     assert items["power.off_level"]["choices"] == ["high", "low"]
     assert "power.shutdown_command" not in items and "pins.power" not in items
+
+
+# ------------------------------------------------------------------ descriptions and ranges for the web form
+def test_every_editable_setting_is_described_in_both_languages():
+    assert set(configedit.SETTING_INFO) == {"%s.%s" % pair for pair in WEB_EDITABLE}
+    for name, info in configedit.SETTING_INFO.items():
+        for field in ("label", "description"):
+            assert set(info[field]) == {"en", "fr"} and all(len(t) > 5 for t in info[field].values()), (name, field)
+        assert info["description"]["en"].endswith(".") and info["description"]["fr"].endswith("."), name
+        assert (info["min"] is None) == (info["max"] is None), name
+
+
+def test_ranges_cover_the_defaults_and_are_enforced():
+    for pair in WEB_EDITABLE:
+        name, kind, default = "%s.%s" % pair, SPEC[pair[0]][pair[1]][0], SPEC[pair[0]][pair[1]][1]
+        info = configedit.SETTING_INFO[name]
+        if kind in ("int", "float"):
+            assert info["min"] is not None and info["min"] <= default <= info["max"], name
+    with pytest.raises(ConfigError, match="between 30 and 85"):
+        configedit.normalise({"fan.threshold_on": 200})
+    with pytest.raises(ConfigError, match="between"):
+        configedit.normalise({"nfc.poll_interval": 0})
+    assert configedit.normalise({"nfc.poll_interval": 0.1}) == {"nfc": {"poll_interval": "0.1"}}
+
+
+def test_the_form_data_carries_labels_descriptions_and_units():
+    items = {i["name"]: i for i in configedit.editable_settings(Config.defaults())}
+    fan = items["fan.threshold_on"]
+    assert fan["unit"] == "°C" and fan["min"] == 30 and fan["max"] == 85
+    assert fan["label"]["fr"] == "Température de démarrage" and "reaches this temperature" in fan["description"]["en"]
+    assert items["nfc.enabled"]["unit"] is None

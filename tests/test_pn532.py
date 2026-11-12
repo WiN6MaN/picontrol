@@ -1,6 +1,6 @@
 import pytest
 
-from fakes import Card
+from fakes import Card, NtagCard
 from picontrol.errors import NotOurTag, ReaderError
 from picontrol.pn532 import PN532
 
@@ -86,3 +86,26 @@ def test_abort_pending_clears_a_stuck_command(reader, sim):
     sim.queue = [b"junk", b"more"]
     reader.abort_pending()
     assert sim.queue == []
+
+
+def test_the_sak_of_the_detected_tag_is_remembered(reader, sim):
+    assert reader.last_sak is None
+    sim.place(Card([1, 2, 3, 4]))
+    reader.read_uid()
+    assert reader.last_sak == 0x08
+    sim.place(NtagCard([4, 1, 2, 3, 4, 5, 6]))
+    reader.read_uid()
+    assert reader.last_sak == 0x00
+
+
+def test_write_page(reader, sim):
+    card = NtagCard([4, 1, 2, 3, 4, 5, 6])
+    sim.place(card)
+    reader.read_uid()
+    reader.write_page(10, b"abcd")
+    assert bytes(card.pages[10]) == b"abcd" and reader.read_block(10)[:4] == b"abcd"
+    with pytest.raises(ValueError):
+        reader.write_page(10, b"abc")
+    card.locked = True
+    with pytest.raises(ReaderError, match="locked"):
+        reader.write_page(11, b"abcd")

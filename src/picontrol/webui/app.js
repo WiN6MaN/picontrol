@@ -22,6 +22,9 @@
       restartService: "Restart the service", reboot: "Reboot the Pi", shutdown: "Shut the Pi down",
       confirmRestart: "Restart the Pi Control service?", confirmReboot: "Reboot the Pi now?",
       confirmShutdown: "Shut the Pi down now?", logs: "Log", requested: "Requested. The page will stop answering for a moment.",
+      group_power: "Power switch", group_reset: "Reset button", group_fan: "Fan", group_led: "LED", group_nfc: "NFC reader",
+      defaultLabel: "Default: ", resetDefault: "Reset to default", discard: "Discard changes", unsaved: "unsaved change(s)",
+      noChanges: "No unsaved changes", invalidNumber: "Some values are not valid numbers.", restartNow: "Restart the service now",
     },
     fr: {
       title: "Pi Control", password: "Mot de passe", signIn: "Se connecter", signOut: "Se déconnecter", language: "English",
@@ -43,6 +46,9 @@
       restartService: "Redémarrer le service", reboot: "Redémarrer le Pi", shutdown: "Éteindre le Pi",
       confirmRestart: "Redémarrer le service Pi Control ?", confirmReboot: "Redémarrer le Pi maintenant ?",
       confirmShutdown: "Éteindre le Pi maintenant ?", logs: "Journal", requested: "Demande envoyée. La page va cesser de répondre un instant.",
+      group_power: "Interrupteur power", group_reset: "Bouton reset", group_fan: "Ventilateur", group_led: "LED", group_nfc: "Lecteur NFC",
+      defaultLabel: "Par défaut : ", resetDefault: "Valeur par défaut", discard: "Annuler les changements", unsaved: "changement(s) non enregistré(s)",
+      noChanges: "Aucun changement non enregistré", invalidNumber: "Certaines valeurs ne sont pas des nombres valides.", restartNow: "Redémarrer le service maintenant",
     },
   };
 
@@ -246,38 +252,82 @@
   }
 
   // ---------------------------------------------------------------- settings
+  function settingControl(s) {
+    const name = s.label[lang];
+    if (s.type === "bool") {
+      const box = el("input", { type: "checkbox", checked: !!s.value, "aria-label": name });
+      return { node: el("label", { class: "switch" }, box, el("span", { class: "slider" })), read: () => box.checked, write: (v) => { box.checked = !!v; }, events: box };
+    }
+    if (s.choices) {
+      const select = el("select", { "aria-label": name }, s.choices.map((v) => el("option", { value: v, selected: v === s.value }, v)));
+      return { node: select, read: () => select.value, write: (v) => { select.value = v; }, events: select };
+    }
+    const input = el("input", { type: "number", step: s.type === "int" ? "1" : "any", min: s.min, max: s.max, value: s.value, "aria-label": name });
+    const parse = s.type === "int" ? (v) => parseInt(v, 10) : parseFloat;
+    return { node: el("span", {}, input, s.unit ? el("span", { class: "unit" }, s.unit) : []), read: () => parse(input.value), write: (v) => { input.value = v; }, events: input };
+  }
+
   function renderSettings(container) {
     const out = el("div", {});
-    const form = el("div", { class: "card" }, t("loading"));
-    container.append(el("p", { class: "muted" }, t("settingsIntro")), form, out);
+    const body = el("div", {}, t("loading"));
+    const bar = el("div", { class: "savebar" });
+    container.append(el("p", { class: "muted" }, t("settingsIntro")), body, out, bar);
     api("GET", "/api/config").then((c) => {
-      clear(form);
-      const inputs = [];
-      for (const s of c.settings) {
-        let input;
-        if (s.type === "bool") input = el("input", { type: "checkbox", checked: !!s.value });
-        else if (s.choices) input = el("select", {}, s.choices.map((v) => el("option", { value: v, selected: v === s.value }, v)));
-        else input = el("input", { type: "number", step: "any", value: s.value });
-        inputs.push([s, input]);
-        form.append(el("div", { class: "setting" }, el("code", {}, s.name), input));
-      }
-      const save = el("button", { class: "primary" }, t("save"));
-      save.addEventListener("click", () => guarded(save, out, async () => {
-        const changes = {};
-        for (const [s, input] of inputs) {
-          let value;
-          if (s.type === "bool") value = input.checked;
-          else if (s.type === "int") value = parseInt(input.value, 10);
-          else if (s.type === "float") value = parseFloat(input.value);
-          else value = input.value;
-          if (value !== s.value) changes[s.name] = value;
+      clear(body);
+      const entries = [];
+      const groups = {};
+      const status = el("span", { class: "grow" }, t("noChanges"));
+      const save = el("button", { class: "primary", disabled: true }, t("save"));
+      const discard = el("button", { disabled: true }, t("discard"));
+      const same = (a, b) => (typeof a === "number" && typeof b === "number" ? Math.abs(a - b) < 1e-9 : a === b);
+      const changedEntries = () => entries.filter((e) => !same(e.read(), e.s.value));
+      function refresh() {
+        for (const e of entries) {
+          const value = e.read();
+          const bad = typeof value === "number" && Number.isNaN(value);
+          e.row.classList.toggle("invalid", bad);
+          e.row.classList.toggle("changed", !bad && !same(value, e.s.value));
         }
-        if (!Object.keys(changes).length) { note(out, t("nothingChanged")); return; }
+        const count = changedEntries().length;
+        status.textContent = count ? count + " " + t("unsaved") : t("noChanges");
+        save.disabled = discard.disabled = count === 0;
+      }
+      for (const s of c.settings) {
+        const group = s.name.split(".")[0];
+        if (!groups[group]) {
+          groups[group] = el("div", { class: "card group" }, el("h2", {}, t("group_" + group)));
+          body.append(groups[group]);
+        }
+        const ctl = settingControl(s);
+        const defaultText = s.type === "bool" ? (s.default ? t("on") : t("off")) : String(s.default) + (s.unit ? " " + s.unit : "");
+        const resetButton = el("button", { class: "link", type: "button" }, t("resetDefault"));
+        resetButton.addEventListener("click", () => { ctl.write(s.default); refresh(); });
+        const row = el("div", { class: "setting" },
+          el("div", {}, el("div", { class: "title" }, s.label[lang], el("code", {}, s.name)), el("p", { class: "desc" }, s.description[lang])),
+          el("div", { class: "control" }, ctl.node, el("span", { class: "default" }, t("defaultLabel") + defaultText + " ", resetButton)));
+        ctl.events.addEventListener("input", refresh);
+        ctl.events.addEventListener("change", refresh);
+        entries.push({ s, row, read: ctl.read, write: ctl.write });
+        groups[group].append(row);
+      }
+      discard.addEventListener("click", () => { for (const e of entries) e.write(e.s.value); clear(out); refresh(); });
+      save.addEventListener("click", () => guarded(save, out, async () => {
+        const todo = changedEntries();
+        if (todo.some((e) => Number.isNaN(e.read()))) { note(out, t("invalidNumber"), "err"); return; }
+        const changes = {};
+        for (const e of todo) changes[e.s.name] = e.read();
         await api("POST", "/api/config", { changes });
-        note(out, t("saved"), "ok");
-        for (const [s, input] of inputs) s.value = s.type === "bool" ? input.checked : (s.type === "str" ? input.value : Number(input.value));
-      }));
-      form.append(el("div", { class: "row" }, save));
+        for (const e of todo) e.s.value = e.read();
+        const saved = note(out, t("saved"), "ok");
+        const restart = el("button", {}, t("restartNow"));
+        restart.addEventListener("click", () => {
+          if (!window.confirm(t("confirmRestart"))) return;
+          guarded(restart, out, async () => { await api("POST", "/api/service/restart", { confirm: true }); note(out, t("requested"), "ok"); });
+        });
+        saved.append(" ", restart);
+      }).then(refresh));
+      bar.append(status, discard, save);
+      refresh();
     }).catch((error) => { if (error.message !== "login required") note(out, error.message, "err"); });
   }
 

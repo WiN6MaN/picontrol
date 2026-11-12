@@ -9,7 +9,7 @@
 ## Install
 
 ```
-git clone https://github.com/<you>/picontrol.git
+git clone https://github.com/WiN6MaN/picontrol.git
 cd picontrol
 sudo ./install.sh --dry-run      # shows exactly what would change
 sudo ./install.sh

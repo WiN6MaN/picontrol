@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "picontrol"
-version = "0.2.0"
+version = "0.3.0"
 description = "Power/reset buttons, fan, LED and NFC cartridges for a RetroPie console built on the Pi Control board"
 readme = "README.md"
 requires-python = ">=3.7"

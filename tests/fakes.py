@@ -8,6 +8,8 @@ ACK_FRAME = bytes([0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00])
 
 
 class Card:
+    sak, atqa = 0x08, (0x00, 0x04)
+
     def __init__(self, uid):
         self.uid = bytes(uid)
         self.mem = [bytearray(16) for _ in range(64)]
@@ -17,6 +19,26 @@ class Card:
 
     def trailers_intact(self):
         return [bytes(self.mem[b]) for b in range(3, 64, 4)] == self.trailers
+
+
+class NtagCard:
+    """NTAG213 (144 bytes of user memory) by default; NTAG215 = 496, NTAG216 = 872. 7-byte UID, SAK 0x00."""
+
+    sak, atqa = 0x00, (0x00, 0x44)
+
+    def __init__(self, uid, size=144, formatted=True):
+        self.uid = bytes(uid)
+        self.size = size
+        self.pages = [bytearray(4) for _ in range(4 + size // 4 + 5)]  # + a few configuration pages
+        self.pages[0][:] = self.uid[:3] + bytes([0x88])
+        if formatted:
+            self.pages[3][:] = bytes([0xE1, 0x10, size // 8, 0x00])
+            self.pages[4][:] = bytes([0x03, 0x00, 0xFE, 0x00])  # factory state: empty NDEF message
+        self.locked = False
+        self.writes = []  # pages written
+
+    def protected_pages(self):
+        return [bytes(p) for p in self.pages[:4]] + [bytes(p) for p in self.pages[4 + self.size // 4:]]
 
 
 class PN532Sim:
@@ -129,7 +151,7 @@ class PN532Sim:
         if command == 0x4A:
             if self.card and self.card_state == "idle":
                 self.card_state, self.authed_sector = "active", None
-                return bytes([1, 1, 0x00, 0x04, 0x08, len(self.card.uid)]) + self.card.uid
+                return bytes([1, 1, self.card.atqa[0], self.card.atqa[1], self.card.sak, len(self.card.uid)]) + self.card.uid
             return bytes([0])
         if command == 0x40:
             return self.data_exchange(bytes(p))
@@ -139,6 +161,8 @@ class PN532Sim:
         if not self.card or self.card_state != "active":
             return bytes([0x01])  # time out: no card
         sub, block = p[1], p[2]
+        if isinstance(self.card, NtagCard):
+            return self.ntag_exchange(sub, block, p)
         if sub == 0x61:
             if self.deny_auth or p[9:13] != self.card.uid or p[3:9] != bytes([0xFF] * 6):
                 return bytes([0x14])
@@ -152,6 +176,21 @@ class PN532Sim:
             self.card.mem[block][:] = p[3:19]
             return bytes([0x00])
         raise AssertionError("unhandled sub-command 0x%02X" % sub)
+
+
+    def ntag_exchange(self, sub, page, p):
+        card = self.card
+        if sub == 0x30:  # READ: 4 pages
+            if page + 4 > len(card.pages):
+                return bytes([0x01])  # NAK: out of range
+            return bytes([0x00]) + b"".join(bytes(card.pages[page + i]) for i in range(4))
+        if sub == 0xA2:  # WRITE one page
+            if card.locked or page < 2 or page >= len(card.pages):
+                return bytes([0x14])  # NAK
+            card.pages[page][:] = p[3:7]
+            card.writes.append(page)
+            return bytes([0x00])
+        return bytes([0x01])  # no Classic authentication on these tags
 
 
 class FakeGpio:

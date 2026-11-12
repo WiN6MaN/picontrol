@@ -7,10 +7,10 @@ Thanks for helping! The project is small on purpose; please keep it that way.
 ### Set up
 
 ```
-git clone https://github.com/<you>/picontrol.git && cd picontrol
+git clone https://github.com/WiN6MaN/picontrol.git && cd picontrol
 python3 -m pip install pytest
 python3 -m pytest -q            # the whole suite, no Raspberry Pi needed
-shellcheck -x install.sh uninstall.sh scripts/common.sh
+shellcheck -x install.sh uninstall.sh scripts/common.sh scripts/personalize.sh
 # optional browser-level test of the web page (needs Node.js):
 (cd tests/ui && npm install) && python3 -m pytest tests/test_ui_smoke.py -q
 ```
@@ -30,6 +30,10 @@ Everything runs off-Pi: `RPi.GPIO` is imported lazily, and the tests use a fake 
 
 Describe what you observed on real hardware when relevant (Pi model, RetroPie version, `picontrol doctor` output).
 
+### Publishing your own copy
+
+After downloading the project, run `bash scripts/personalize.sh` once: it asks for your GitHub user name, your name and your e-mail, puts them where they belong (README, docs, LICENSE) and rewrites the author of every commit. Then create an empty repository on GitHub and run the two commands it prints (`git remote add origin ...` and `git push -u origin main`).
+
 ## Français
 
 Merci de votre aide ! Le projet est petit volontairement ; merci de le garder ainsi.
@@ -37,10 +41,10 @@ Merci de votre aide ! Le projet est petit volontairement ; merci de le garder ai
 ### Mise en place
 
 ```
-git clone https://github.com/<vous>/picontrol.git && cd picontrol
+git clone https://github.com/WiN6MaN/picontrol.git && cd picontrol
 python3 -m pip install pytest
 python3 -m pytest -q            # toute la suite, aucun Raspberry Pi nécessaire
-shellcheck -x install.sh uninstall.sh scripts/common.sh
+shellcheck -x install.sh uninstall.sh scripts/common.sh scripts/personalize.sh
 # test optionnel de la page web dans un environnement de type navigateur (Node.js requis) :
 (cd tests/ui && npm install) && python3 -m pytest tests/test_ui_smoke.py -q
 ```
@@ -59,3 +63,7 @@ Tout s'exécute hors du Pi : `RPi.GPIO` est importé à la demande, et les tests
 ### Demandes de fusion (pull requests)
 
 Décrivez ce que vous avez observé sur du vrai matériel quand c'est pertinent (modèle de Pi, version de RetroPie, sortie de `picontrol doctor`).
+
+### Publier votre propre copie
+
+Après avoir téléchargé le projet, lancez une fois `bash scripts/personalize.sh` : il demande votre nom d'utilisateur GitHub, votre nom et votre courriel, les place aux bons endroits (README, docs, LICENSE) et réécrit l'auteur de chaque commit. Créez ensuite un dépôt vide sur GitHub et lancez les deux commandes qu'il affiche (`git remote add origin ...` et `git push -u origin main`).

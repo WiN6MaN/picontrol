@@ -22,9 +22,9 @@ Chaque thread est supervisé séparément : une exception est journalisée et le
 |---|---|
 | `config.py` | Lecture INI, valeurs par défaut, validation stricte |
 | `gpio.py` | Mince enveloppe de `RPi.GPIO` (importée à la demande : tout est testable hors du Pi) |
-| `pn532.py` | Pilote PN532 : SPI logiciel, trames, sommes de contrôle, auth/lecture/écriture MIFARE |
+| `pn532.py` | Pilote PN532 : SPI logiciel, trames, sommes de contrôle, auth/lecture/écriture MIFARE, écriture de pages NTAG |
 | `tagformat.py` | Encodage/décodage pur du conteneur sur le tag |
-| `tagstore.py` | Lecture/écriture des enregistrements sur une disposition MIFARE Classic 1K |
+| `tagstore.py` | Lecture/écriture des enregistrements sur des tags MIFARE Classic 1K et NTAG/Ultralight (famille détectée automatiquement) |
 | `nfc.py` | Machine à états des tags, demandes d'écriture, boucle de sondage supervisée |
 | `launcher.py` | Validation des ROM, arrêt/lancement des jeux et d'EmulationStation |
 | `buttons.py`, `fan.py`, `led.py` | Petites machines à états pilotées par une horloge injectée |
@@ -51,7 +51,7 @@ Chaque thread est supervisé séparément : une exception est journalisée et le
 
 ## Stratégie de test
 
-La suite de tests (plus de 350 tests, pytest) exerce toute la pile contre un **simulateur** du PN532 et d'un tag MIFARE Classic branchés sur les mêmes broches de SPI logiciel : transferts bit à bit, trames et sommes de contrôle, ACK/réponse, authentification, lecture/écriture de blocs, pannes injectées (puce muette, réponses corrompues). L'installateur est exécuté pour de vrai dans un bac à sable, et la page web est pilotée dans un environnement de type navigateur (jsdom) contre le vrai serveur sur du faux matériel - ce qui a révélé un bogue qu'aucun test Python ne pouvait voir. Les boutons et le ventilateur sont pilotés par une horloge injectée : aucun test n'attend en temps réel.
+La suite de tests (plus de 350 tests, pytest) exerce toute la pile contre un **simulateur** du PN532 et de tags MIFARE Classic et NTAG branchés sur les mêmes broches de SPI logiciel : transferts bit à bit, trames et sommes de contrôle, ACK/réponse, authentification, lecture/écriture de blocs, pannes injectées (puce muette, réponses corrompues). L'installateur est exécuté pour de vrai dans un bac à sable, et la page web est pilotée dans un environnement de type navigateur (jsdom) contre le vrai serveur sur du faux matériel - ce qui a révélé un bogue qu'aucun test Python ne pouvait voir. Les boutons et le ventilateur sont pilotés par une horloge injectée : aucun test n'attend en temps réel.
 
 Le simulateur reproduit le protocole tel que l'utilisait le pilote d'origine, mais ce n'est pas la vraie puce : la validation sur le matériel reste l'étape finale, d'où `picontrol test` et `picontrol doctor`.
 
@@ -59,5 +59,5 @@ Le simulateur reproduit le protocole tel que l'utilisait le pilote d'origine, ma
 
 - Un lancement par tag arrête et relance EmulationStation (inhérent au lancement depuis l'extérieur).
 - Le reset et la fermeture n'agissent que sur les émulateurs basés sur RetroArch.
-- MIFARE Classic 1K seulement ; 255 octets de charge utile par tag.
+- Tags MIFARE Classic 1K et NTAG/Ultralight seulement ; 254 octets de message par tag.
 - L'interrupteur power n'a qu'un comportement (arrêt propre immédiat). Le mode « alimentation logicielle » de l'original (éteindre puis rallumer en quelques secondes pour recharger) n'est pas implémenté.

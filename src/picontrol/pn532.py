@@ -24,8 +24,9 @@ CMD_SAM_CONFIG = 0x14
 CMD_RF_CONFIG = 0x32
 CMD_IN_DATA_EXCHANGE = 0x40
 CMD_IN_LIST_PASSIVE = 0x4A
-MIFARE_READ = 0x30
+MIFARE_READ = 0x30  # also the Type 2 (NTAG / Ultralight) READ: 4 pages = 16 bytes
 MIFARE_WRITE = 0xA0
+TYPE2_WRITE = 0xA2  # NTAG / Ultralight WRITE: one 4-byte page
 MIFARE_AUTH_B = 0x61
 DEFAULT_KEY = bytes([0xFF] * 6)
 
@@ -68,6 +69,7 @@ class PN532:
         self.spi = SoftSpi(gpio, sclk, mosi, miso)
         self.rf_reset_each_poll = rf_reset_each_poll
         self.wake_delay, self.ack_timeout, self._sleep = wake_delay, ack_timeout, sleep
+        self.last_sak = None  # SAK of the tag found by the last read_uid (tells the tag families apart)
         self._setup_pins()
 
     def _setup_pins(self):
@@ -194,6 +196,7 @@ class PN532:
         size = resp[5]
         if size not in (4, 7, 10) or len(resp) < 6 + size:
             raise ReaderError("unexpected UID length %d" % size)
+        self.last_sak = resp[4]
         return bytes(resp[6:6 + size])
 
     def _exchange(self, params, response_length):
@@ -214,8 +217,16 @@ class PN532:
     def read_block(self, block):
         status, data = self._exchange(bytes([0x01, MIFARE_READ, block & 0xFF]), 17)
         if status != 0x00 or len(data) < 16:
-            raise ReaderError("read of block %d failed: status 0x%02X" % (block, status))
+            raise ReaderError("read of block/page %d failed: status 0x%02X" % (block, status))
         return bytes(data[:16])
+
+    def write_page(self, page, data):
+        """Write one 4-byte page of an NTAG / Ultralight tag."""
+        if len(data) != 4:
+            raise ValueError("a page is 4 bytes")
+        status, _ = self._exchange(bytes([0x01, TYPE2_WRITE, page & 0xFF]) + bytes(data), 1)
+        if status != 0x00:
+            raise ReaderError("write of page %d failed: status 0x%02X (is the tag locked?)" % (page, status))
 
     def write_block(self, block, data):
         if len(data) != 16:

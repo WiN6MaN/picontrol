@@ -24,7 +24,7 @@ Le service refuse de démarrer la partie web sans mot de passe, et le journalise
 |---|---|
 | État | Température, ventilateur, interrupteur, jeu en cours, lecteur NFC et tag, durées de fonctionnement. Se rafraîchit toutes les 3 secondes |
 | Tags NFC | Lire un tag ; écrire un tag en choisissant un système et en cherchant dans vos jeux ; écrire le jeu en cours |
-| Réglages | Modifier les réglages sûrs (voir plus bas) ; un bandeau rappelle de redémarrer le service |
+| Réglages | Modifier les réglages sûrs, regroupés par fonction, chacun avec une explication, son unité et sa valeur par défaut ; une barre indique les changements non enregistrés et propose de redémarrer le service |
 | Système | Redémarrer le service, redémarrer ou éteindre le Pi (chacun demande confirmation), lire le journal |
 
 L'interface existe en français et en anglais (bouton en haut, mémorisé par le navigateur).

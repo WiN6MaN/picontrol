@@ -1,0 +1,4 @@
+# Keep Unix line endings everywhere: shell scripts break with Windows (CRLF) line endings.
+# Garde les fins de ligne Unix partout : les scripts shell cassent avec les fins de ligne Windows (CRLF).
+* text=auto eol=lf
+*.sh text eol=lf

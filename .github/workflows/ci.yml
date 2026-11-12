@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: shellcheck -x install.sh uninstall.sh scripts/common.sh
+      - run: shellcheck -x install.sh uninstall.sh scripts/common.sh scripts/personalize.sh
 
   ui:
     # Browser-level smoke test of the web interface (jsdom against the real server on fake hardware).
