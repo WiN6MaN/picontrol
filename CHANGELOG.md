@@ -2,6 +2,17 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). / Format inspiré de Keep a Changelog.
 
+## [0.3.1] - 2026-11-18
+
+- Fixed: after a game started from an NFC tag, the RetroPie menus (RetroPie Setup, Raspi-Config, Wi-Fi...) misbehaved and jumped back to EmulationStation. The original Pi Control had the same defect. Cause: killing EmulationStation ended `autostart.sh`, the login shell took the console back, and the game and EmulationStation, started later by a background service, ran behind it. Now EmulationStation runs under a foreground `picontrol session`, which also runs the tag games, so everything keeps the console.
+  / Corrigé : après un jeu lancé depuis un tag NFC, les menus RetroPie (RetroPie Setup, Raspi-Config, Wi-Fi...) se comportaient mal et revenaient à EmulationStation. Pi Control d'origine avait le même défaut. Cause : tuer EmulationStation terminait `autostart.sh`, le shell de connexion reprenait la console, et le jeu puis EmulationStation, lancés ensuite par un service d'arrière-plan, tournaient derrière lui. Désormais EmulationStation tourne sous une `picontrol session` au premier plan, qui lance aussi les jeux des tags : tout garde la console.
+- The installer writes a new start-up block (a small `emulationstation()` function; plain EmulationStation starts if the session cannot run). **Reboot after upgrading.** Without a session the service falls back to the old method and logs a warning; `picontrol doctor` reports the state.
+  / L'installateur écrit un nouveau bloc de démarrage (une petite fonction `emulationstation()` ; EmulationStation démarre normalement si la session ne peut pas tourner). **Redémarrez après la mise à jour.** Sans session, le service se rabat sur l'ancienne méthode et journalise un avertissement ; `picontrol doctor` signale l'état.
+- On shutdown the session no longer restarts EmulationStation when the game quits. New command `picontrol session`; new module `roms.py`; `PICONTROL_RUNTIME_DIR` can move the request and pid files away from `/dev/shm`.
+  / À l'arrêt, la session ne relance plus EmulationStation quand le jeu se ferme. Nouvelle commande `picontrol session` ; nouveau module `roms.py` ; `PICONTROL_RUNTIME_DIR` permet de déplacer les fichiers de demande et de pid hors de `/dev/shm`.
+- 70+ new tests, among them a test with real processes on a pseudo-terminal that checks the game and EmulationStation stay in the terminal's foreground process group (and a control test that detects the old behaviour).
+  / Plus de 70 nouveaux tests, dont un test avec de vrais processus sur un pseudo-terminal qui vérifie que le jeu et EmulationStation restent dans le groupe de processus au premier plan du terminal (et un test témoin qui détecte l'ancien comportement).
+
 ## [0.3.0] - 2026-11-10
 
 - NTAG213 / NTAG215 / NTAG216 and MIFARE Ultralight tags (7-byte UID) are now supported, next to MIFARE Classic 1K; the family is detected automatically and protected areas are never written.

@@ -1,6 +1,7 @@
 """Command line interface. / Interface en ligne de commande.
 
   picontrol run [--dry-run]            start the service
+  picontrol session [-- ES_ARGS...]    run EmulationStation in the foreground (used by autostart.sh)
   picontrol tag read                   show the tag in the field
   picontrol tag write SYSTEM ROM       write a tag (or: tag write --current)
   picontrol test led|fan|buttons|nfc   hardware tests
@@ -32,6 +33,11 @@ def build_parser():
 
     run = sub.add_parser("run", help="run the service")
     run.add_argument("--dry-run", action="store_true", help="log what would happen; stop/start/shutdown nothing")
+
+    session = sub.add_parser("session", help="run EmulationStation and tag-launched games in the foreground "
+                                              "of the console (started by autostart.sh)")
+    session.add_argument("es_args", nargs="*", metavar="ES_ARGS", help="arguments for the first EmulationStation "
+                                                                        "start (after a '--')")
 
     tag = sub.add_parser("tag", help="read or write NFC tags").add_subparsers(dest="action", metavar="ACTION")
     tag.add_parser("read", help="show the tag in the field")
@@ -166,6 +172,10 @@ def main(argv=None):
             from .service import Service
             Service(cfg, gpio=_gpio(), dry_run=args.dry_run).run()
             return 0
+        if args.command == "session":
+            from .session import Session
+            es_args = args.es_args[1:] if args.es_args[:1] == ["--"] else args.es_args
+            return Session(cfg).run(es_args)
         if args.command == "tag":
             if args.action == "read":
                 return cmd_tag_read(cfg)

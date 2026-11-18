@@ -52,7 +52,7 @@ Une amélioration par rapport au décodeur d'origine : celui-ci repérait les en
 
 ## Comportement pendant un jeu
 
-- Un jeu lancé par un tag arrête EmulationStation et le relance ensuite. On ne peut pas demander à EmulationStation de lancer un jeu depuis l'extérieur, et il doit d'abord libérer l'écran et les manettes. Les jeux lancés depuis EmulationStation lui-même ne sont pas concernés. Pour accélérer ce redémarrage : [installation](installation.md#emulationstation-plus-rapide).
+- Un jeu lancé par un tag arrête EmulationStation et le relance ensuite. On ne peut pas demander à EmulationStation de lancer un jeu depuis l'extérieur, et il doit d'abord libérer l'écran et les manettes. Le jeu et EmulationStation tournent sous la [session de console](architecture.md#la-session-de-console) : les menus RetroPie continuent donc de fonctionner ensuite. Les jeux lancés depuis EmulationStation lui-même ne sont pas concernés. Pour accélérer ce redémarrage : [installation](installation.md#emulationstation-plus-rapide).
 - Présenter un autre tag pendant un jeu arrête le jeu et lance le nouveau.
 - `quit_on_remove = true` quitte le jeu quand son tag est retiré.
 - Retirer puis représenter le même tag relance le jeu ; le laisser en place ne le relance pas.

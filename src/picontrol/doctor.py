@@ -9,10 +9,11 @@ import shutil
 import subprocess
 import sys
 
-from . import retroarch, webauth
+from . import retroarch, session, webauth
 
 AUTOSTART = "/opt/retropie/configs/all/autostart.sh"
 MARKER = "# >>> picontrol"
+SESSION_MARKER = "picontrol session"
 OK, WARN, FAIL = "OK", "WARN", "FAIL"
 
 
@@ -21,7 +22,7 @@ def _writable_dir_for(path):
     return os.path.isdir(folder) and os.access(folder, os.W_OK)
 
 
-def run_checks(cfg, config_path=None, autostart=AUTOSTART):
+def run_checks(cfg, config_path=None, autostart=AUTOSTART, runtime_dir=None):
     checks = []
     add = lambda status, title, detail="": checks.append((status, title, detail))  # noqa: E731
 
@@ -85,9 +86,20 @@ def run_checks(cfg, config_path=None, autostart=AUTOSTART):
                 "allow_public = true: never port-forward this service to the internet")
     try:
         with open(autostart, encoding="utf-8") as handle:
-            present = MARKER in handle.read()
-        add(OK if present else WARN, "Started from autostart.sh",
-            "" if present else "run install.sh, or add the block described in docs/en/installation.md")
+            text = handle.read()
     except OSError:
         add(WARN, "Started from autostart.sh", "%s not found" % autostart)
+        return checks
+    present = MARKER in text
+    add(OK if present else WARN, "Started from autostart.sh",
+        "" if present else "run install.sh, or add the block described in docs/en/installation.md")
+    if present:
+        if SESSION_MARKER not in text:
+            add(WARN, "Console session in autostart.sh",
+                "old block: run install.sh again (tag games would leave the RetroPie menus broken)")
+        elif session.session_running(runtime_dir):
+            add(OK, "Console session running", "EmulationStation runs under picontrol session")
+        else:
+            add(WARN, "Console session running",
+                "not running: reboot after installing (or run the doctor as the RetroPie user, not with sudo)")
     return checks

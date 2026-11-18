@@ -104,3 +104,26 @@ def test_web_set_password_interactive_mismatch(conf, monkeypatch, capsys):
     monkeypatch.setattr("getpass.getpass", lambda prompt="": next(answers))
     assert cli.main(["-c", conf, "web", "set-password"]) == 2
     assert "differ" in capsys.readouterr().out
+
+
+def test_session_command_runs_the_session_with_the_original_arguments(conf, monkeypatch):
+    seen = {}
+
+    class FakeSession:
+        def __init__(self, cfg):
+            seen["cfg"] = cfg
+
+        def run(self, es_args):
+            seen["args"] = es_args
+            return 3
+
+    monkeypatch.setattr("picontrol.session.Session", FakeSession)
+    assert cli.main(["-c", conf, "session", "--", "--no-splash", "--debug"]) == 3
+    assert seen["args"] == ["--no-splash", "--debug"]
+    assert cli.main(["-c", conf, "session"]) == 3 and seen["args"] == []
+
+
+def test_session_command_with_a_bad_config_fails_so_that_autostart_falls_back(tmp_path, capsys):
+    bad = tmp_path / "bad.conf"
+    bad.write_text("[nope]\n")
+    assert cli.main(["-c", str(bad), "session"]) == 2

@@ -26,7 +26,9 @@ Chaque thread est supervisé séparément : une exception est journalisée et le
 | `tagformat.py` | Encodage/décodage pur du conteneur sur le tag |
 | `tagstore.py` | Lecture/écriture des enregistrements sur des tags MIFARE Classic 1K et NTAG/Ultralight (famille détectée automatiquement) |
 | `nfc.py` | Machine à états des tags, demandes d'écriture, boucle de sondage supervisée |
-| `launcher.py` | Validation des ROM, arrêt/lancement des jeux et d'EmulationStation |
+| `launcher.py` | Lancement d'un jeu depuis un tag : le confie à la session de console (ou au repli direct) |
+| `session.py` | La session de console : exécute EmulationStation et les jeux des tags au premier plan de la console |
+| `roms.py` | Validation des noms de ROM, partagée par le service et la session |
 | `buttons.py`, `fan.py`, `led.py` | Petites machines à états pilotées par une horloge injectée |
 | `retroarch.py` | Commandes réseau UDP de RetroArch |
 | `web.py`, `webauth.py` | Serveur web (bibliothèque standard), logique des requêtes, mots de passe, sessions, filtres réseau |
@@ -38,7 +40,7 @@ Chaque thread est supervisé séparément : une exception est journalisée et le
 ## Décisions de conception
 
 - **SPI logiciel.** La carte relie le PN532 à des GPIO ordinaires. Le bus est généré en Python (mode 0, bit de poids faible en premier).
-- **Lancé depuis `autostart.sh`, pas systemd.** Lancer un jeu doit se faire dans la session console de RetroPie (tty, affichage, entrées). Une boucle de relance autour de la commande assure la reprise après plantage.
+- **Lancé depuis `autostart.sh`, pas systemd.** Lancer un jeu doit se faire dans la session console de RetroPie (tty, affichage, entrées). Une boucle de relance autour de la commande assure la reprise après plantage. EmulationStation lui-même tourne sous `picontrol session` : voir plus bas.
 - **Un seul propriétaire du lecteur.** Le programme d'origine laissait plusieurs processus (boutons, serveur web) parler au PN532 en même temps, et des trames entremêlées se corrompent. Ici, le thread NFC est le seul propriétaire ; les commandes `picontrol tag` prennent un verrou de fichier inter-processus (`ReaderLock`) que le service respecte entre deux sondages.
 - **Chaque attente a un délai maximum, chaque échec est une exception.** Le pilote ne renvoie jamais `None` pour signaler une erreur. Après trois erreurs de lecteur consécutives, le service réinitialise complètement la puce (annulation de la commande en cours, réveil, vérification du firmware, configuration).
 - **Tentatives d'activation finies.** Au démarrage, on indique à la puce de n'essayer qu'une fois par sondage : `InListPassiveTarget` revient vite avec zéro cible au lieu de rester occupée.
@@ -48,6 +50,24 @@ Chaque thread est supervisé séparément : une exception est journalisée et le
 - **Sécurités.** Ventilateur allumé si la température est illisible ou si le contrôleur s'arrête ; pas d'arrêt si la commande échoue (l'interrupteur se réarme) ; rien n'est lancé pendant l'arrêt.
 - **Petite surface réseau, désactivée par défaut.** Sans l'interface web, il n'y a aucun socket en écoute (seulement de l'UDP vers RetroArch sur localhost). L'interface web optionnelle repose sur la bibliothèque standard, est durcie et limitée au réseau local : voir [interface web](web.md).
 - **Les opérations sur les tags sont des tâches.** L'interface web et le bouton reset demandent au thread NFC de lire ou d'écrire un tag et attendent la réponse ; le thread reste le seul propriétaire du lecteur.
+
+## La session de console
+
+Sur RetroPie, `autostart.sh` exécute EmulationStation au **premier plan** de la console. C'est ce qui permet à EmulationStation, à `runcommand.sh` et aux menus RetroPie (RetroPie Setup, Raspi-Config, Wi-Fi : des écrans texte sur la console) de lire la manette. Un jeu lancé par un tag l'était par un service d'arrière-plan qui commençait par tuer EmulationStation. Cela terminait `autostart.sh`, le shell de connexion reprenait la console, et tout ce qui démarrait ensuite (le jeu, puis EmulationStation) tournait *derrière* ce shell : les menus RetroPie recevaient alors de mauvaises entrées et revenaient seuls à EmulationStation. Pi Control d'origine avait le même défaut.
+
+La correction est un processus qui ne lâche jamais la console :
+
+```
+ autostart.sh ─► picontrol session  (premier plan, reste en vie)
+                  ├─ EmulationStation ... se termine quand le service le demande (fichier de demande + arrêt)
+                  ├─ runcommand.sh ─► le jeu (lancé par la session elle-même, comme le ferait EmulationStation)
+                  └─ EmulationStation de nouveau (--no-splash)
+ picontrol run ──► écrit /dev/shm/picontrol-launch-<uid>, puis arrête EmulationStation / le jeu en cours
+```
+
+Chaque processus garde la console, exactement comme pour un jeu lancé depuis EmulationStation. Le service dépose seulement un petit fichier de demande (noms revalidés par la session ; aucun shell, listes d'arguments uniquement) et arrête EmulationStation. Sans session (bloc de démarrage pas encore mis à jour), le service se rabat sur l'ancienne méthode directe et journalise un avertissement ; `picontrol doctor` le signale. Si la session elle-même échoue, EmulationStation démarre normalement.
+
+Un test reproduit le défaut avec de vrais processus sur un pseudo-terminal et vérifie que le jeu et EmulationStation restent dans le groupe de processus au premier plan du terminal ; un test témoin confirme que l'ancienne méthode est bien détectée.
 
 ## Stratégie de test
 

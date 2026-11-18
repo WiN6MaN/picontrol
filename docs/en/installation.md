@@ -30,7 +30,7 @@ If `git` is missing: `sudo apt install git`. The installer is **idempotent**: ru
 | Log file | `/var/log/picontrol.log` | Owned by the RetroPie user; rotated at 200 kB |
 | Dependency | `python3-rpi.gpio` | Installed with `apt` only if missing |
 | RetroArch | `/opt/retropie/configs/all/retroarch.cfg` | Sets `network_cmd_enable = "true"` and the port, after saving a copy as `retroarch.cfg.picontrol-bak` |
-| Start-up | `/opt/retropie/configs/all/autostart.sh` | Adds one marked block **before** the `emulationstation` line (copy saved as `autostart.sh.picontrol-bak`) |
+| Start-up | `/opt/retropie/configs/all/autostart.sh` | Adds one marked block **before** the `emulationstation` line: the background service, and a small function so that EmulationStation runs under `picontrol session` (copy saved as `autostart.sh.picontrol-bak`) |
 
 Options: `--dry-run`, `--skip-deps`, `--no-retroarch-config`, `--no-autostart`, `--user NAME`.
 
@@ -44,9 +44,10 @@ Add this to `/opt/retropie/configs/all/autostart.sh`, **before** the `emulations
 
 ```
 (while true; do /usr/local/bin/picontrol run; sleep 3; done) &
+emulationstation() { /usr/local/bin/picontrol session -- "$@" || command emulationstation "$@"; }
 ```
 
-The loop restarts the service if it ever exits. To apply a configuration change without rebooting: `pkill -f "python3 -m picontrol run"` - the loop starts it again three seconds later.
+The loop restarts the service if it ever exits. The second line makes the `emulationstation` line that follows start EmulationStation under the [console session](architecture.md#the-console-session) (so that games started by a tag keep the console and the RetroPie menus keep working); if the session cannot run, plain EmulationStation starts instead. To apply a configuration change without rebooting: `pkill -f "python3 -m picontrol run"` - the loop starts it again three seconds later.
 
 ## Coming from the original Pi Control (or a hand-modified install)
 
@@ -69,6 +70,8 @@ sudo ./uninstall.sh --purge                       # ...and the configuration and
 ```
 
 `uninstall.sh` leaves `retroarch.cfg` alone (a backup, `retroarch.cfg.picontrol-bak`, exists).
+
+**Reboot after every upgrade that changes the start-up block** (0.3.1 did): the new block only takes effect the next time `autostart.sh` runs. `picontrol doctor` tells you whether the console session is running.
 
 ## Faster EmulationStation
 

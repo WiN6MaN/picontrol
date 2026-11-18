@@ -84,11 +84,11 @@ def clock():
 
 
 @pytest.fixture
-def service(cfg, gpio, reader, procs):
+def service(cfg, gpio, reader, procs, tmp_path):
     """A real Service wired to the fakes (no web server started)."""
     from picontrol.service import Service
     svc = Service(cfg, gpio=gpio, run_command=lambda c: svc.commands.append(list(c)) or 0, popen=FakePopen,
-                  procs=procs, reader=reader, sleep=lambda s: None)
+                  procs=procs, reader=reader, sleep=lambda s: None, runtime_dir=str(tmp_path))
     svc.commands, svc.sent = [], []
     svc.retroarch.send = lambda command: svc.sent.append(command) or True
     return svc

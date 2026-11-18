@@ -48,6 +48,9 @@ def test_install_creates_everything(box):
     assert autostart.index("# <<< picontrol <<<") > begin
     assert begin < autostart.index("emulationstation #auto")  # before the (blocking) emulationstation line
     assert "(while true; do %s/picontrol run; sleep 3; done) &" % (tmp / "bin") in autostart
+    function = [line for line in autostart if line.startswith("emulationstation()")]
+    assert len(function) == 1 and "%s/picontrol session -- " % (tmp / "bin") in function[0]
+    assert begin < autostart.index(function[0]) < autostart.index("emulationstation #auto")  # defined before use
     assert (configs / "autostart.sh.picontrol-bak").read_text() == AUTOSTART_ORIGINAL
 
     ra = (configs / "retroarch.cfg").read_text().splitlines()
@@ -135,3 +138,57 @@ def test_uninstall_dry_run(box):
     before = (configs / "autostart.sh").read_text()
     assert sh("uninstall.sh", env, "--dry-run").returncode == 0
     assert (configs / "autostart.sh").read_text() == before and (tmp / "opt").exists()
+
+
+# ------------------------------------------------------------------ the emulationstation() function in autostart.sh
+OLD_BLOCK = ("# >>> picontrol (managed block) >>>\n# Added by the Pi Control installer.\n"
+             "(while true; do /usr/local/bin/picontrol run; sleep 3; done) &\n# <<< picontrol <<<\n")
+
+
+def test_an_old_block_is_upgraded_in_place(box):
+    _, configs, env = box
+    (configs / "autostart.sh").write_text("#!/bin/bash\n" + OLD_BLOCK + "emulationstation #auto\n")
+    assert sh("install.sh", env).returncode == 0
+    text = (configs / "autostart.sh").read_text()
+    assert text.count("# >>> picontrol") == 1 and "picontrol session" in text
+    assert "/usr/local/bin/picontrol run" not in text and text.rstrip().endswith("emulationstation #auto")
+
+
+def test_uninstall_removes_the_function_too(box):
+    _, configs, env = box
+    assert sh("install.sh", env).returncode == 0
+    assert sh("uninstall.sh", env).returncode == 0
+    assert "picontrol" not in (configs / "autostart.sh").read_text()
+
+
+def run_autostart_line(box, session_exit, remove_launcher=False):
+    """Evaluate the installed emulationstation() function with a fake launcher and a fake EmulationStation."""
+    tmp, configs, env = box
+    assert sh("install.sh", env).returncode == 0
+    function = [line for line in (configs / "autostart.sh").read_text().splitlines()
+                if line.startswith("emulationstation()")][0]
+    bindir = tmp / "bin"
+    if remove_launcher:
+        (bindir / "picontrol").unlink()
+    else:
+        (bindir / "picontrol").write_text('#!/bin/sh\necho "launcher $*"\nexit %d\n' % session_exit)
+    fakes = tmp / "fakes"
+    fakes.mkdir()
+    (fakes / "emulationstation").write_text('#!/bin/sh\necho "plain $*"\n')
+    (fakes / "emulationstation").chmod(0o755)
+    result = subprocess.run(["bash", "-c", function + "\nemulationstation --first --second #auto"],
+                            env=dict(env, PATH="%s:%s" % (fakes, os.environ["PATH"])), stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, universal_newlines=True)
+    return result.stdout.splitlines()
+
+
+def test_function_runs_the_session_with_the_original_arguments(box):
+    assert run_autostart_line(box, 0) == ["launcher session -- --first --second"]
+
+
+def test_function_starts_plain_emulationstation_if_the_session_fails(box):
+    assert run_autostart_line(box, 1) == ["launcher session -- --first --second", "plain --first --second"]
+
+
+def test_function_starts_plain_emulationstation_if_the_launcher_is_missing(box):
+    assert run_autostart_line(box, 0, remove_launcher=True) == ["plain --first --second"]

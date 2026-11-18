@@ -10,7 +10,7 @@ from picontrol.service import Service, Worker
 
 
 @pytest.fixture
-def svc_factory(cfg, gpio, reader, procs):
+def svc_factory(cfg, gpio, reader, procs, tmp_path):
     made = {}
 
     def make(run_result=0, **kwargs):
@@ -21,7 +21,7 @@ def svc_factory(cfg, gpio, reader, procs):
             return run_result
 
         service = Service(cfg, gpio=gpio, run_command=run_command, popen=FakePopen, procs=procs, reader=reader,
-                          sleep=lambda s: None, **kwargs)
+                          sleep=lambda s: None, runtime_dir=str(tmp_path), **kwargs)
         made["sent"] = []
         service.retroarch.send = lambda command: made["sent"].append(command) or True
         gpio.levels[cfg.pins.power] = 0  # latching switch ON
@@ -44,6 +44,22 @@ def test_power_off_shuts_down_gracefully(svc_factory, cfg, gpio):
     assert len(made["commands"]) == 1  # a second event cannot shut down twice
 
 
+def test_shutdown_tells_the_console_session_not_to_restart_emulationstation(svc_factory, monkeypatch, tmp_path):
+    from picontrol import session
+    monkeypatch.setattr(session, "session_running", lambda *a, **k: True)
+    service, made = svc_factory()
+    service.on_power_off()
+    assert session.take_request(str(tmp_path)) == {"action": "exit"}
+
+
+def test_failed_shutdown_withdraws_the_exit_request(svc_factory, monkeypatch, tmp_path):
+    from picontrol import session
+    monkeypatch.setattr(session, "session_running", lambda *a, **k: True)
+    service, made = svc_factory(run_result=1)
+    service.on_power_off()
+    assert not session.request_pending(str(tmp_path))
+
+
 def test_failed_shutdown_command_rearms(svc_factory):
     service, made = svc_factory(run_result=1)
     service.on_power_off()
@@ -52,10 +68,10 @@ def test_failed_shutdown_command_rearms(svc_factory):
     assert len(made["commands"]) == 2
 
 
-def test_dry_run_never_shuts_down(cfg, gpio, reader, procs):
+def test_dry_run_never_shuts_down(cfg, gpio, reader, procs, tmp_path):
     commands = []
     service = Service(cfg, gpio=gpio, dry_run=True, run_command=lambda c: commands.append(c) or 0, popen=FakePopen,
-                      procs=procs, reader=reader, sleep=lambda s: None)
+                      procs=procs, reader=reader, sleep=lambda s: None, runtime_dir=str(tmp_path))
     service.on_power_off()
     assert commands == []
 

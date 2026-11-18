@@ -52,7 +52,7 @@ One improvement over the original decoder: it located records by looking for the
 
 ## Behaviour while a game runs
 
-- A game started by a tag stops EmulationStation and restarts it afterwards. EmulationStation cannot be asked to start a game from outside, and it must release the screen and controllers first. Games started from EmulationStation itself are not affected. Tips to speed the restart up: [installation](installation.md#faster-emulationstation).
+- A game started by a tag stops EmulationStation and restarts it afterwards. EmulationStation cannot be asked to start a game from outside, and it must release the screen and controllers first. The game and EmulationStation run under the [console session](architecture.md#the-console-session), so the RetroPie menus keep working afterwards. Games started from EmulationStation itself are not affected. Tips to speed the restart up: [installation](installation.md#faster-emulationstation).
 - Presenting a different tag while a game runs stops the game and launches the new one.
 - `quit_on_remove = true` quits the game when its tag is removed.
 - Removing and re-presenting the same tag launches again; leaving it in place does not.

@@ -138,7 +138,7 @@ install_autostart() {
   say "Adding the start-up block to $AUTOSTART"
   backup_once "$AUTOSTART"
   if [ "$DRY_RUN" = 1 ]; then
-    say "[dry-run] insert the picontrol block before the emulationstation line"
+    say "[dry-run] insert the picontrol block (service + console session) before the emulationstation line"
     return 0
   fi
   remove_block "$AUTOSTART"
@@ -148,6 +148,10 @@ install_autostart() {
     printf '%s\n' "$BEGIN_MARK"
     printf '# Added by the Pi Control installer. Remove with uninstall.sh; do not edit between the markers.\n'
     printf '(while true; do %s/picontrol run; sleep 3; done) &\n' "$BIN_DIR"
+    printf '# EmulationStation runs under "picontrol session": games started from NFC tags then keep the console.\n'
+    printf '# If the session cannot run, plain EmulationStation starts instead.\n'
+    # shellcheck disable=SC2016  # "$@" must stay literal: it is evaluated by autostart.sh
+    printf 'emulationstation() { %s/picontrol session -- "$@" || command emulationstation "$@"; }\n' "$BIN_DIR"
     printf '%s\n' "$END_MARK"
   } > "$block"
   awk -v blockfile="$block" '
@@ -183,4 +187,4 @@ say ""
 say "Done. Next steps / Étapes suivantes :"
 say "  picontrol doctor            # check the installation / vérifier l'installation"
 say "  picontrol test buttons      # then: led, fan, nfc / puis : led, fan, nfc"
-say "  sudo reboot"
+say "  sudo reboot                 # required: EmulationStation must start again under the new console session"

@@ -49,7 +49,7 @@ class Worker(threading.Thread):
 
 class Service:
     def __init__(self, cfg, gpio=None, dry_run=False, run_command=None, popen=subprocess.Popen,
-                 procs=None, reader=None, sleep=time.sleep):
+                 procs=None, reader=None, sleep=time.sleep, runtime_dir=None):
         self.cfg, self.dry_run, self._sleep = cfg, dry_run, sleep
         self._run_command = run_command or subprocess.call
         self._shutting_down = False
@@ -59,7 +59,8 @@ class Service:
         self.gpio = gpio or Gpio()
         self.led = Led(self.gpio, cfg.pins.led, cfg.led.enabled)
         self.retroarch = RetroArch(cfg.retroarch.host, cfg.retroarch.port, dry_run=dry_run)
-        self.launcher = Launcher(cfg, self.retroarch, procs=procs, popen=popen, dry_run=dry_run)
+        self.launcher = Launcher(cfg, self.retroarch, procs=procs, popen=popen, dry_run=dry_run,
+                                 runtime_dir=runtime_dir)
         self.nfc = (NfcService(cfg, reader or reader_from_config(cfg, self.gpio), self.launcher, self.led)
                     if cfg.nfc.enabled else None)
         self.fan = None
@@ -85,7 +86,7 @@ class Service:
         if self._shutting_down:
             return
         self._shutting_down = True
-        self.launcher.shutting_down = True  # do not restart ES while the system goes down
+        self.launcher.begin_shutdown()  # do not restart ES while the system goes down
         log.warning("%s", label)
         self.led.blink(3)
         self.retroarch.quit()  # RetroArch saves on quit
@@ -98,7 +99,7 @@ class Service:
         else:
             log.error("Command failed: %s", " ".join(command))
         self._shutting_down = False  # dry-run or failure: allow another attempt
-        self.launcher.shutting_down = False
+        self.launcher.cancel_shutdown()
         self.led.on()
 
     def shutdown(self, reason="Shutdown requested"):

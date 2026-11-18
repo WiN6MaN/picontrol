@@ -31,6 +31,7 @@ Pour arrêter le service en cours pendant vos essais : `pkill -f "python3 -m pic
 | Le jeu se lance deux fois ou se relance sans cesse | Tag en bord de champ, détection instable | Placez bien le tag ; augmentez `remove_delay` ; envoyez un journal `--debug` si cela persiste |
 | « The reader is busy » | Une autre commande ou le service tient le lecteur | Réessayez ; les commandes attendent jusqu'à 20 s |
 | Erreurs NFC aléatoires | Fils longs ou mal serrés, module hors mode SPI, bruit d'alimentation | `picontrol --debug run` ; vérifiez le câblage et l'alimentation |
+| Après un jeu lancé par tag, les menus RetroPie (RetroPie Setup, Raspi-Config, Wi-Fi) se comportent mal ou reviennent à EmulationStation | Le jeu a été lancé sans la session de console (bloc de démarrage pas mis à jour, ou pas de redémarrage depuis) | `picontrol doctor` (« Console session running ») ; relancez `sudo ./install.sh`, puis redémarrez |
 | Le retour d'un jeu lancé par tag est lent | EmulationStation recharge ses listes | Voir [installation](installation.md#emulationstation-plus-rapide) |
 | La page web ne charge pas | Interface web désactivée, pas de mot de passe, mauvaise adresse ou mauvais port | `picontrol doctor` ; vérifiez `[web] enabled` ; le journal donne l'adresse (`tail /var/log/picontrol.log`) |
 | Le navigateur avertit du certificat | Certificat auto-signé | Normal : comparez l'empreinte avec celle du journal, puis acceptez |

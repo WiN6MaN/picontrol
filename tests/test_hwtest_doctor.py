@@ -87,3 +87,38 @@ def test_doctor_web_checks(cfg, tmp_path):
 
 def test_doctor_is_silent_about_the_web_interface_when_it_is_off(cfg, tmp_path):
     assert not [t for t in by_title(doctor.run_checks(cfg, None, autostart=str(tmp_path / "x"))) if "Web" in t]
+
+
+def test_doctor_checks_the_console_session(cfg, tmp_path):
+    from picontrol import session
+    run = tmp_path / "run"
+    run.mkdir()
+    old = tmp_path / "old.sh"
+    old.write_text("# >>> picontrol (managed block) >>>\n(while true; do picontrol run; done) &\n# <<< picontrol <<<\n")
+    new = tmp_path / "new.sh"
+    new.write_text("# >>> picontrol (managed block) >>>\nemulationstation() { /usr/local/bin/picontrol session -- \"$@\"; }\n"
+                   "# <<< picontrol <<<\nemulationstation\n")
+    status = by_title(doctor.run_checks(cfg, None, autostart=str(old), runtime_dir=str(run)))
+    assert status["Console session in autostart.sh"] == doctor.WARN and "Console session running" not in status
+    status = by_title(doctor.run_checks(cfg, None, autostart=str(new), runtime_dir=str(run)))
+    assert status["Console session running"] == doctor.WARN  # installed, but not rebooted yet
+    with open(session.pid_path(str(run)), "w") as handle:
+        handle.write("%d\n" % os.getpid())
+    # our own process is not a picontrol session: the pid file alone is not trusted
+    status = by_title(doctor.run_checks(cfg, None, autostart=str(new), runtime_dir=str(run)))
+    assert status["Console session running"] == doctor.WARN
+    original = session.session_running
+    session.session_running = lambda *a, **k: True
+    try:
+        status = by_title(doctor.run_checks(cfg, None, autostart=str(new), runtime_dir=str(run)))
+    finally:
+        session.session_running = original
+    assert status["Console session running"] == doctor.OK
+
+
+def test_doctor_says_nothing_about_the_session_without_a_picontrol_block(cfg, tmp_path):
+    plain = tmp_path / "plain.sh"
+    plain.write_text("emulationstation\n")
+    status = by_title(doctor.run_checks(cfg, None, autostart=str(plain)))
+    assert status["Started from autostart.sh"] == doctor.WARN
+    assert not [title for title in status if "Console session" in title]

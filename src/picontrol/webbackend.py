@@ -15,7 +15,7 @@ from . import __version__, configedit
 from .config import DEFAULT_CONFIG_PATH, Config
 from .errors import ApiError, BusyError, ConfigError, LaunchError
 from .fan import read_temperature
-from .launcher import SYSTEM_RE
+from .roms import SYSTEM_RE
 from .nfc import TagJob
 
 log = logging.getLogger("picontrol.web")

@@ -30,7 +30,7 @@ Si `git` manque : `sudo apt install git`. L'installateur est **idempotent** : le
 | Journal | `/var/log/picontrol.log` | Appartient à l'utilisateur RetroPie ; rotation à 200 ko |
 | Dépendance | `python3-rpi.gpio` | Installée avec `apt` seulement si elle manque |
 | RetroArch | `/opt/retropie/configs/all/retroarch.cfg` | Active `network_cmd_enable = "true"` et le port, après copie de sauvegarde `retroarch.cfg.picontrol-bak` |
-| Démarrage | `/opt/retropie/configs/all/autostart.sh` | Ajoute un bloc balisé **avant** la ligne `emulationstation` (copie `autostart.sh.picontrol-bak`) |
+| Démarrage | `/opt/retropie/configs/all/autostart.sh` | Ajoute un bloc balisé **avant** la ligne `emulationstation` : le service en arrière-plan, et une petite fonction pour qu'EmulationStation tourne sous `picontrol session` (copie `autostart.sh.picontrol-bak`) |
 
 Options : `--dry-run`, `--skip-deps`, `--no-retroarch-config`, `--no-autostart`, `--user NOM`.
 
@@ -44,9 +44,10 @@ Ajoutez ceci dans `/opt/retropie/configs/all/autostart.sh`, **avant** la ligne `
 
 ```
 (while true; do /usr/local/bin/picontrol run; sleep 3; done) &
+emulationstation() { /usr/local/bin/picontrol session -- "$@" || command emulationstation "$@"; }
 ```
 
-La boucle relance le service s'il s'arrête. Pour appliquer un changement de configuration sans redémarrer : `pkill -f "python3 -m picontrol run"` - la boucle le relance trois secondes plus tard.
+La boucle relance le service s'il s'arrête. La deuxième ligne fait que la ligne `emulationstation` qui suit lance EmulationStation sous la [session de console](architecture.md#la-session-de-console) (les jeux lancés par un tag gardent ainsi la console et les menus RetroPie continuent de fonctionner) ; si la session ne peut pas démarrer, EmulationStation démarre normalement. Pour appliquer un changement de configuration sans redémarrer : `pkill -f "python3 -m picontrol run"` - la boucle le relance trois secondes plus tard.
 
 ## Si vous venez de Pi Control d'origine (ou d'une installation modifiée à la main)
 
@@ -69,6 +70,8 @@ sudo ./uninstall.sh --purge                       # ...et aussi la configuration
 ```
 
 `uninstall.sh` ne touche pas à `retroarch.cfg` (une sauvegarde, `retroarch.cfg.picontrol-bak`, existe).
+
+**Redémarrez après toute mise à jour qui modifie le bloc de démarrage** (la 0.3.1 le fait) : le nouveau bloc ne prend effet qu'au prochain passage de `autostart.sh`. `picontrol doctor` indique si la session de console tourne.
 
 ## EmulationStation plus rapide
 
