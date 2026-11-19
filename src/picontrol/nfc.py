@@ -172,6 +172,10 @@ class NfcService:
                 self.launcher.quit_game()
         self.first_cycle = False
 
+    def _a_game_is_running(self):
+        """A game of ours (even one still loading) or one started from EmulationStation."""
+        return self.launcher.game_running() or self.launcher.any_game_running()
+
     def _handle(self, uid, now):
         if now - self.last_launch < self.cfg.nfc.min_relaunch_interval:
             return
@@ -193,6 +197,10 @@ class NfcService:
                 self.handled = True
             return
         self.handled = True
+        if not self.cfg.nfc.replace_running_game and self._a_game_is_running():
+            log.info("A game is running: tag ignored (replace_running_game is off). "
+                     "Quit the game, then remove the tag and present it again.")
+            return
         self.last_launch = now
         self.launcher.launch(records[0], path)
 

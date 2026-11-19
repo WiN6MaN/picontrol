@@ -63,6 +63,7 @@ Optionnelle et désactivée par défaut : état, tags NFC, quelques réglages s�
 | | `remove_delay` | `2.0` | Absence nécessaire pour compter un retrait |
 | | `launch_at_start` | `true` | Lancer le tag déjà présent au démarrage (le jeu démarre avant EmulationStation) |
 | | `quit_on_remove` | `false` | Quitter le jeu quand son tag est retiré |
+| | `replace_running_game` | `true` | Un tag présenté pendant un jeu l'arrête et lance celui du tag ; `false` ignore le tag tant qu'un jeu tourne |
 | | `rf_reset_each_poll` | `true` | Couper le champ RF avant chaque sondage (voir [architecture](architecture.md)) |
 | | `write_timeout` | `15` | Secondes pour présenter un tag après un appui long |
 | `[paths]` | `roms_dir`, `runcommand`, `retroarch_cfg`, `emulationstation_command`, `extra_emulators` | valeurs RetroPie | Emplacements |

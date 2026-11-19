@@ -63,6 +63,7 @@ Optional and off by default: status, NFC tags, a few safe settings and restart/s
 | | `remove_delay` | `2.0` | Absence needed to count as removed |
 | | `launch_at_start` | `true` | Launch the tag already present at start-up (the game starts before EmulationStation does) |
 | | `quit_on_remove` | `false` | Quit the game when its tag is removed |
+| | `replace_running_game` | `true` | A tag presented during a game stops it and starts the tag's game; `false` ignores the tag while a game runs |
 | | `rf_reset_each_poll` | `true` | Cut the RF field before each poll (see [architecture](architecture.md)) |
 | | `write_timeout` | `15` | Seconds to present a tag after a long press |
 | `[paths]` | `roms_dir`, `runcommand`, `retroarch_cfg`, `emulationstation_command`, `extra_emulators` | RetroPie defaults | Where things live |

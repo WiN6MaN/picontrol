@@ -22,7 +22,7 @@ Present an NFC "cartridge" and its game starts. Flip the power switch and the co
 
 ## Status
 
-**Beta (0.3.2).** The buttons, LED, fan and web interface have been validated on a real Raspberry Pi 3B with the Pi Control Rev 5 board. NFC is tested against a simulator of the PN532 and of MIFARE Classic and NTAG tags; NTAG support (0.3.0) and the console-session fix for the RetroPie menus after a tag game (0.3.1) are tested with simulators and real processes on a pseudo-terminal, but **still have to be confirmed on the real Pi and real tags**. Run `picontrol doctor` and `picontrol test ...` after installing, and please report what you observe. See [architecture](docs/en/architecture.md) for the known limits.
+**Beta (0.3.3).** The buttons, LED, fan and web interface have been validated on a real Raspberry Pi 3B with the Pi Control Rev 5 board. NFC is tested against a simulator of the PN532 and of MIFARE Classic and NTAG tags; NTAG support (0.3.0) and the console-session fix for the RetroPie menus after a tag game (0.3.1) are tested with simulators and real processes on a pseudo-terminal, but **still have to be confirmed on the real Pi and real tags**. Run `picontrol doctor` and `picontrol test ...` after installing, and please report what you observe. See [architecture](docs/en/architecture.md) for the known limits.
 
 ## Quick start
 

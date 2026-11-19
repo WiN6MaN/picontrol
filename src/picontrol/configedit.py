@@ -103,6 +103,12 @@ SETTING_INFO = {
         "Quit the game when the tag is removed", "Quitter le jeu au retrait du tag",
         "Like pulling a cartridge out: removing the tag closes the game.",
         "Comme retirer une cartouche : retirer le tag ferme le jeu."),
+    "nfc.replace_running_game": _info(
+        "A new tag replaces the running game", "Un nouveau tag remplace le jeu en cours",
+        "On: presenting a tag while a game is running stops that game and starts the tag's game. "
+        "Off: the tag is ignored while a game is running (quit the game first, then present the tag again).",
+        "Activé : présenter un tag pendant un jeu arrête ce jeu et lance celui du tag. "
+        "Désactivé : le tag est ignoré tant qu'un jeu tourne (quittez d'abord le jeu, puis présentez de nouveau le tag)."),
     "nfc.rf_reset_each_poll": _info(
         "Radio reset before each detection (advanced)", "Réinitialisation radio avant chaque détection (avancé)",
         "Briefly cuts the radio field before each check so a tag is always detected. Leave on unless you are troubleshooting.",

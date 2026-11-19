@@ -22,7 +22,7 @@ Présentez une « cartouche » NFC et son jeu démarre. Basculez l'interrupteur 
 
 ## État
 
-**Bêta (0.3.2).** Les boutons, la LED, le ventilateur et l'interface web ont été validés sur un vrai Raspberry Pi 3B avec la carte Pi Control Rev 5. Le NFC est testé contre un simulateur du PN532 et de tags MIFARE Classic et NTAG ; la prise en charge des NTAG (0.3.0) et la correction par session de console des menus RetroPie après un jeu par tag (0.3.1) sont testées avec des simulateurs et de vrais processus sur un pseudo-terminal, mais **restent à confirmer sur le vrai Pi et de vrais tags**. Lancez `picontrol doctor` et `picontrol test ...` après l'installation, et signalez ce que vous observez. Voir l'[architecture](docs/fr/architecture.md) pour les limites connues.
+**Bêta (0.3.3).** Les boutons, la LED, le ventilateur et l'interface web ont été validés sur un vrai Raspberry Pi 3B avec la carte Pi Control Rev 5. Le NFC est testé contre un simulateur du PN532 et de tags MIFARE Classic et NTAG ; la prise en charge des NTAG (0.3.0) et la correction par session de console des menus RetroPie après un jeu par tag (0.3.1) sont testées avec des simulateurs et de vrais processus sur un pseudo-terminal, mais **restent à confirmer sur le vrai Pi et de vrais tags**. Lancez `picontrol doctor` et `picontrol test ...` après l'installation, et signalez ce que vous observez. Voir l'[architecture](docs/fr/architecture.md) pour les limites connues.
 
 ## Démarrage rapide
 

@@ -223,6 +223,13 @@ def test_config_view_and_update(backend, conf_file):
     assert backend.config_view()["restart_required"] and backend.status()["restart_required"]
 
 
+def test_replace_running_game_can_be_switched_off_from_the_web_interface(backend, conf_file):
+    shown = {s["name"]: s for s in backend.config_view()["settings"]}["nfc.replace_running_game"]
+    assert shown["value"] is True and shown["default"] is True  # today's behaviour unless the user changes it
+    assert backend.config_update({"nfc.replace_running_game": False}) == {"ok": True, "restart_required": True}
+    assert Config.load(str(conf_file)).nfc.replace_running_game is False
+
+
 def test_config_update_errors(backend, conf_file):
     before = conf_file.read_text()
     for changes in ({"power.shutdown_command": "rm -rf /"}, {"fan.threshold_on": 10}, {"fan.interval": "x"}, {}):

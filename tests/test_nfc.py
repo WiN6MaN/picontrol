@@ -123,6 +123,69 @@ def test_quit_on_remove_is_off_by_default(service, reader, sim, launcher):
     assert launcher.quits == 0
 
 
+# ---------------------------------------------------------------- a tag presented while a game runs
+def test_a_new_tag_replaces_the_running_game_by_default(service, reader, sim, launcher, cfg):
+    assert cfg.nfc.replace_running_game is True
+    launcher.procs.running.add(launcher._emulators)  # a game started from EmulationStation is running
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    assert launcher.launched == [("nes", "Zelda II.nes")]
+
+
+@pytest.mark.parametrize("how", ["emulator", "our own game"])
+def test_a_tag_is_ignored_while_a_game_runs_when_replacing_is_off(service, reader, sim, launcher, cfg, how):
+    cfg.nfc.replace_running_game = False
+    if how == "emulator":
+        launcher.procs.running.add(launcher._emulators)  # started from EmulationStation
+    else:
+        launcher.running = True  # started by us and still loading: no emulator process yet
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    for t in (0.0, 0.5, 1.0):
+        service.step(now=t)
+    assert launcher.launched == [] and launcher.quits == 0
+    assert service.handled  # and it is not retried at every poll
+
+
+def test_an_ignored_tag_does_not_launch_when_the_game_ends_but_works_after_reinsertion(service, reader, sim, launcher, cfg):
+    cfg.nfc.replace_running_game = False
+    launcher.procs.running.add(launcher._emulators)
+    card = tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    launcher.procs.running.clear()  # the player quits the game, the cassette is still in the reader
+    for t in (1.0, 2.0, 3.0):
+        service.step(now=t)
+    assert launcher.launched == []  # no surprise launch
+    sim.remove()
+    service.step(now=4.0)
+    service.step(now=6.5)  # absent for longer than remove_delay
+    assert service.uid is None
+    sim.place(card)
+    service.step(now=7.0)
+    assert launcher.launched == [("nes", "Zelda II.nes")]
+
+
+def test_with_replacing_off_a_tag_still_launches_when_no_game_runs(service, reader, sim, launcher, cfg):
+    cfg.nfc.replace_running_game = False
+    tagged(reader, sim, ["nes", "Zelda II.nes"])  # EmulationStation menus, nothing running
+    service.step(now=0)
+    assert launcher.launched == [("nes", "Zelda II.nes")]
+
+
+def test_an_ignored_tag_does_not_start_the_relaunch_delay(service, reader, sim, launcher, cfg):
+    cfg.nfc.replace_running_game = False
+    cfg.nfc.min_relaunch_interval = 3.0
+    launcher.procs.running.add(launcher._emulators)
+    card = tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)  # ignored
+    launcher.procs.running.clear()
+    sim.remove()
+    service.step(now=0.5)
+    service.step(now=2.6)
+    sim.place(card)
+    service.step(now=2.7)  # only 2.7 s after the ignored tag: it must not count as a launch
+    assert launcher.launched == [("nes", "Zelda II.nes")]
+
+
 def test_min_relaunch_interval(service, reader, sim, launcher, cfg):
     cfg.nfc.min_relaunch_interval = 5.0
     tagged(reader, sim, ["nes", "Zelda II.nes"])

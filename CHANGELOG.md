@@ -2,6 +2,13 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). / Format inspiré de Keep a Changelog.
 
+## [0.3.3] - 2026-11-18
+
+- New: setting `[nfc] replace_running_game` (default `true`, so nothing changes unless you switch it). With `false`, a tag presented while a game is running is ignored, whether the game was started from a tag or from EmulationStation: the running game is no longer cut. The tag is then considered handled: after quitting the game, remove the tag and present it again to launch it. Available in the web interface (Settings, NFC) and in `picontrol.conf`. Combine it with `quit_on_remove = true` for a "swap cartridges" feel: remove the cartridge to close the game, wait for EmulationStation to come back, insert another to play it.
+  / Nouveau : réglage `[nfc] replace_running_game` (`true` par défaut : rien ne change tant que vous ne le modifiez pas). À `false`, un tag présenté pendant qu'un jeu tourne est ignoré, que le jeu ait été lancé depuis un tag ou depuis EmulationStation : le jeu en cours n'est plus coupé. Le tag est alors considéré comme traité : après avoir quitté le jeu, retirez le tag et présentez-le de nouveau pour le lancer. Disponible dans l'interface web (Réglages, NFC) et dans `picontrol.conf`. À combiner avec `quit_on_remove = true` pour l'effet « changer de cartouche » : retirer la cassette ferme le jeu, attendre le retour d'EmulationStation, en insérer une autre pour la lancer.
+- 7 new tests (including the case of a game still loading, the rule that an ignored tag does not start the relaunch delay, and the web interface setting).
+  / 7 nouveaux tests (dont le cas d'un jeu encore en chargement, et la règle qu'un tag ignoré ne déclenche pas le délai de relance et le réglage dans l'interface web).
+
 ## [0.3.2] - 2026-11-19
 
 - Fixed: with a tag already in the reader at boot, the controller stopped responding in the RetroPie menus. The log showed why: EmulationStation was still loading, ignored the polite stop for 3 seconds and was then killed by force, which leaves the console keyboard in a broken state. Now the console session waits (12 s at most) for the NFC service's first scan at boot: a tag present at start launches its game before EmulationStation even starts. EmulationStation is no longer killed by force (only the emulators are, after 8 s; EmulationStation only after 2 minutes of being stuck), in the console session and in the direct fallback alike.
