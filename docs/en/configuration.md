@@ -17,7 +17,7 @@ The switch position is authoritative: if the Pi boots with the switch OFF, it sh
 
 | You do | The service does |
 |---|---|
-| Short press | Sends `RESET` to RetroArch (resets the running game) |
+| Short press | Sends `RESET` to RetroArch (resets the running game). With `launch_on_reset_press = true` and a cassette waiting in the reader, launches that cassette instead and does **not** reset the game |
 | Hold for `long_press` seconds | Writes the running game to the next tag you present (see [NFC tags](nfc-tags.md)) |
 
 Reset and quit use RetroArch's network commands, so they only affect RetroArch-based emulators.
@@ -28,7 +28,7 @@ On at `threshold_on` °C, off at `threshold_off` °C, and never off before it ha
 
 ### NFC
 
-Presenting a tag launches its game once. Leaving it in place does nothing (the game is not relaunched when it ends). A tag counts as removed after it has been absent for `remove_delay` seconds; presenting it again launches again. Details in [NFC tags](nfc-tags.md).
+Presenting a tag launches its game once. Leaving it in place does nothing (the game is not relaunched when it ends). A tag counts as removed after it has been absent for `remove_delay` seconds; presenting it again launches again. A tag presented while a game is running is ignored unless `replace_running_game` is on. With `launch_on_reset_press`, a tag waits for a short press of the Reset button before its game starts. Details in [NFC tags](nfc-tags.md).
 
 ### Web interface
 
@@ -40,6 +40,7 @@ Optional and off by default: status, NFC tags, a few safe settings and restart/s
 |---|---|
 | Steady on | The service is running |
 | One short blink | Reset button pressed |
+| Two short blinks | A cassette was recognised and waits for the Reset button (`launch_on_reset_press`) |
 | Three fast blinks | Long press recognised: present a tag |
 | Three slow blinks | Tag written and verified |
 | Six very fast blinks | Error (nothing to write, no tag in time, write failed) |
@@ -63,7 +64,8 @@ Optional and off by default: status, NFC tags, a few safe settings and restart/s
 | | `remove_delay` | `2.0` | Absence needed to count as removed |
 | | `launch_at_start` | `true` | Launch the tag already present at start-up (the game starts before EmulationStation does) |
 | | `quit_on_remove` | `false` | Quit the game when its tag is removed |
-| | `replace_running_game` | `true` | A tag presented during a game stops it and starts the tag's game; `false` ignores the tag while a game runs |
+| | `replace_running_game` | `false` | `false`: a tag presented during a game is ignored (the game is never cut); `true`: it stops the game and starts the tag's game |
+| | `launch_on_reset_press` | `false` | A cassette waits for a short press of Reset before its game starts; with no cassette waiting, Reset still resets the game |
 | | `rf_reset_each_poll` | `true` | Cut the RF field before each poll (see [architecture](architecture.md)) |
 | | `write_timeout` | `15` | Seconds to present a tag after a long press |
 | `[paths]` | `roms_dir`, `runcommand`, `retroarch_cfg`, `emulationstation_command`, `extra_emulators` | RetroPie defaults | Where things live |

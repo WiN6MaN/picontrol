@@ -28,6 +28,8 @@ To stop the running service while you experiment: `pkill -f "python3 -m picontro
 | "is the tag locked?" | The tag is read-only | Use another tag: a locked tag cannot be rewritten |
 | "not NDEF-formatted" | An unformatted tag (no capability container) | Format it once with a phone NFC app ("format tag"), then write it again |
 | "ROM not found" | System or file name does not match the ROM folder | Names are case-sensitive: `picontrol tag read` then compare with `ls ~/RetroPie/roms/<system>` |
+| The cassette blinks the LED twice but nothing starts | `launch_on_reset_press` is on: the cassette waits for you | Press the Reset button briefly (a long press writes a tag instead) |
+| A cassette does nothing while a game is running | By design: `replace_running_game` is off, so a running game is never cut | Quit the game, remove the cassette and insert it again; or set `replace_running_game = true` |
 | Game launches twice or keeps relaunching | Tag at the edge of the field, flickering | Seat the tag properly; raise `remove_delay`; send a `--debug` log if it persists |
 | "The reader is busy" | Another command or the service holds the reader | Retry; commands wait up to 20 s |
 | Random NFC errors | Long or loose wires, module not in SPI mode, supply noise | `picontrol --debug run`; check wiring and the supply |

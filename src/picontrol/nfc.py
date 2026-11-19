@@ -1,7 +1,9 @@
 """NFC service: detects tags and launches games. / Service NFC : détecte les tags et lance les jeux.
 
 State machine (one ``step`` per poll)
-  * a new tag appears      -> read it -> validate -> launch the game (once)
+  * a new tag appears      -> read it -> validate -> launch the game (once); a running game is not replaced
+                              unless ``replace_running_game`` is on
+                              (``launch_on_reset_press``: the game waits for a short press of the Reset button)
   * the tag stays          -> nothing (no relaunch when the game ends)
   * the tag is absent for ``remove_delay`` s -> "removed" (optionally quit the game)
   * the same tag comes back after a removal  -> launch again
@@ -21,6 +23,8 @@ from .lock import ReaderLock
 from .pn532 import PN532, hexstr
 
 log = logging.getLogger("picontrol.nfc")
+
+PRESS_MAX_AGE = 10.0  # seconds: a Reset press older than this no longer launches a cassette
 
 
 def reader_from_config(cfg, gpio):
@@ -76,6 +80,8 @@ class NfcService:
         self.first_cycle = True
         self.ready = False
         self._job = None
+        self._pending = None  # (system, rom path, uid) of a cassette waiting for the Reset button
+        self._press_at = None  # when the Reset button asked to launch it
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------ requests from other threads
@@ -98,6 +104,60 @@ class NfcService:
     def status(self):
         return {"enabled": True, "ready": self.ready, "busy": self._job is not None,
                 "tag": hexstr(self.uid) if self.uid else None}
+
+    # ------------------------------------------------------------------ launch with the Reset button
+    def _press_mode(self):
+        """Cassettes wait for the Reset button (never without a Reset button: nothing could start them)."""
+        return self.cfg.nfc.launch_on_reset_press and self.cfg.reset.enabled
+
+    def take_reset_press(self):
+        """Called by the Reset button's thread on a short press.
+
+        True = the press launches the cassette that is waiting, so the caller must NOT reset the game.
+        False = no cassette is waiting (or a game must not be replaced): Reset keeps its usual meaning.
+        Appelé par le thread du bouton Reset : True = l'appui lance la cassette en attente (pas de reset du jeu).
+        """
+        if not self._press_mode():
+            return False
+        with self._lock:
+            if self._pending is None:
+                return False
+            if self._press_at is not None:
+                return True  # a press is already on its way: swallow this one too
+        if not self.cfg.nfc.replace_running_game and self._a_game_is_running():
+            return False  # a game is running and must not be cut: Reset resets it, as usual
+        with self._lock:
+            if self._pending is None:
+                return False
+            self._press_at = self._clock()
+        return True
+
+    def _launch_waiting(self, now):
+        """In the NFC thread: start the waiting cassette if the Reset button was pressed for it."""
+        with self._lock:
+            pressed_at, pending = self._press_at, self._pending
+        if pressed_at is None or pending is None:
+            return
+        system, path, uid = pending
+        if self._clock() - pressed_at > PRESS_MAX_AGE:
+            log.info("Reset press too old (the reader was busy): not launching")
+            self._forget_press()
+            return
+        if uid != self.uid or self.last_seen != now:
+            return  # the cassette is not in the field at this poll: wait for the next one (or for its removal)
+        with self._lock:
+            self._pending = self._press_at = None
+        log.info("Reset button pressed: launching %s / %s", system, path)
+        self.last_launch = now
+        self.launcher.launch(system, path)
+
+    def _forget_press(self):
+        with self._lock:
+            self._press_at = None
+
+    def _forget_waiting(self):
+        with self._lock:
+            self._pending = self._press_at = None
 
     def _take_job(self):
         with self._lock:
@@ -144,6 +204,7 @@ class NfcService:
             return
         # the tag that was just read/written must not launch its game
         self.uid, self.handled, self.last_seen = uid, True, self._clock()
+        self._forget_waiting()
         job.finish(result=result)
 
     # ------------------------------------------------------------------ polling
@@ -161,6 +222,7 @@ class NfcService:
             if uid != self.uid:
                 log.info("Tag detected: %s", hexstr(uid))
                 self.uid, self.handled, self.attempts = uid, False, 0
+                self._forget_waiting()
                 if self.first_cycle and not self.cfg.nfc.launch_at_start:
                     self.handled = True
             if not self.handled:
@@ -168,8 +230,10 @@ class NfcService:
         elif self.uid is not None and now - self.last_seen >= self.cfg.nfc.remove_delay:
             log.info("Tag removed: %s", hexstr(self.uid))
             self.uid, self.handled, self.attempts = None, False, 0
+            self._forget_waiting()
             if self.cfg.nfc.quit_on_remove:
                 self.launcher.quit_game()
+        self._launch_waiting(now)
         self.first_cycle = False
 
     def _a_game_is_running(self):
@@ -200,6 +264,12 @@ class NfcService:
         if not self.cfg.nfc.replace_running_game and self._a_game_is_running():
             log.info("A game is running: tag ignored (replace_running_game is off). "
                      "Quit the game, then remove the tag and present it again.")
+            return
+        if self._press_mode():
+            with self._lock:
+                self._pending = (records[0], path, uid)
+            log.info("Cassette %s / %s is waiting: press the Reset button to launch it", records[0], records[1])
+            self.led.blink(2, 0.1, 0.1)
             return
         self.last_launch = now
         self.launcher.launch(records[0], path)

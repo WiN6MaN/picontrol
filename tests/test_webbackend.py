@@ -223,11 +223,14 @@ def test_config_view_and_update(backend, conf_file):
     assert backend.config_view()["restart_required"] and backend.status()["restart_required"]
 
 
-def test_replace_running_game_can_be_switched_off_from_the_web_interface(backend, conf_file):
-    shown = {s["name"]: s for s in backend.config_view()["settings"]}["nfc.replace_running_game"]
-    assert shown["value"] is True and shown["default"] is True  # today's behaviour unless the user changes it
-    assert backend.config_update({"nfc.replace_running_game": False}) == {"ok": True, "restart_required": True}
-    assert Config.load(str(conf_file)).nfc.replace_running_game is False
+def test_game_protection_settings_can_be_changed_from_the_web_interface(backend, conf_file):
+    shown = {s["name"]: s for s in backend.config_view()["settings"]}
+    for name in ("nfc.replace_running_game", "nfc.launch_on_reset_press"):
+        assert shown[name]["value"] is False and shown[name]["default"] is False  # a running game is protected
+    assert backend.config_update({"nfc.replace_running_game": True, "nfc.launch_on_reset_press": True}) == {
+        "ok": True, "restart_required": True}
+    cfg = Config.load(str(conf_file))
+    assert cfg.nfc.replace_running_game is True and cfg.nfc.launch_on_reset_press is True
 
 
 def test_config_update_errors(backend, conf_file):

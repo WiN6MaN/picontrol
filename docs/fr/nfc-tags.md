@@ -53,9 +53,10 @@ Une amélioration par rapport au décodeur d'origine : celui-ci repérait les en
 ## Comportement pendant un jeu
 
 - Un jeu lancé par un tag arrête EmulationStation et le relance ensuite. On ne peut pas demander à EmulationStation de lancer un jeu depuis l'extérieur, et il doit d'abord libérer l'écran et les manettes. Le jeu et EmulationStation tournent sous la [session de console](architecture.md#la-session-de-console) : les menus RetroPie continuent donc de fonctionner ensuite. Les jeux lancés depuis EmulationStation lui-même ne sont pas concernés. Pour accélérer ce redémarrage : [installation](installation.md#emulationstation-plus-rapide).
-- Présenter un autre tag pendant un jeu arrête le jeu et lance le nouveau. Avec `replace_running_game = false`, le tag est ignoré tant qu'un jeu tourne : quittez le jeu, puis retirez le tag et présentez-le de nouveau.
-- `quit_on_remove = true` quitte le jeu quand son tag est retiré. Avec aussi `replace_running_game = false`, on obtient l'effet « changer de cartouche » : retirer la cassette ferme le jeu, attendre le retour d'EmulationStation, insérer la suivante.
+- Un tag présenté pendant qu'un jeu tourne est ignoré par défaut : un jeu n'est donc jamais coupé par accident. Quittez le jeu, puis retirez le tag et présentez-le de nouveau. Avec `replace_running_game = true`, le tag arrête le jeu en cours et lance le sien.
+- `quit_on_remove = true` quitte le jeu quand son tag est retiré. Avec le `replace_running_game = false` par défaut, on obtient l'effet « changer de cartouche » : retirer la cassette ferme le jeu, attendre le retour d'EmulationStation, insérer la suivante.
 - Retirer puis représenter le même tag relance le jeu ; le laisser en place ne le relance pas.
+- `launch_on_reset_press = true` : une cassette ne démarre pas toute seule. La LED clignote deux fois pour dire qu'elle est reconnue, et son jeu démarre quand vous appuyez brièvement sur le bouton Reset. Le bouton Reset garde son sens habituel dès qu'aucune cassette n'attend (pas de cassette dans le lecteur, ou son jeu a déjà été lancé) : il redémarre le jeu en cours. Une cassette déjà dans le lecteur au démarrage attend aussi (`launch_at_start`). Retirer la cassette annule l'attente. Cela demande `[reset] enabled = true` ; `picontrol doctor` le vérifie.
 
 ## Non pris en charge
 

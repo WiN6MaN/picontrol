@@ -109,6 +109,12 @@ SETTING_INFO = {
         "Off: the tag is ignored while a game is running (quit the game first, then present the tag again).",
         "Activé : présenter un tag pendant un jeu arrête ce jeu et lance celui du tag. "
         "Désactivé : le tag est ignoré tant qu'un jeu tourne (quittez d'abord le jeu, puis présentez de nouveau le tag)."),
+    "nfc.launch_on_reset_press": _info(
+        "Launch the cassette with the Reset button", "Lancer la cassette avec le bouton Reset",
+        "On: a cassette in the reader waits until you press Reset briefly, then its game starts. "
+        "With no cassette waiting, Reset still resets the running game.",
+        "Activé : une cassette dans le lecteur attend un appui court sur Reset, puis son jeu démarre. "
+        "Sans cassette en attente, Reset réinitialise toujours le jeu en cours."),
     "nfc.rf_reset_each_poll": _info(
         "Radio reset before each detection (advanced)", "Réinitialisation radio avant chaque détection (avancé)",
         "Briefly cuts the radio field before each check so a tag is always detected. Leave on unless you are troubleshooting.",

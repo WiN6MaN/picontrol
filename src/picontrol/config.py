@@ -59,7 +59,8 @@ SPEC = {
         "max_read_attempts": ("int", 3),
         "launch_at_start": ("bool", True),
         "quit_on_remove": ("bool", False),
-        "replace_running_game": ("bool", True),
+        "replace_running_game": ("bool", False),
+        "launch_on_reset_press": ("bool", False),
         "rf_reset_each_poll": ("bool", True),
         "write_timeout": ("float", 15.0),
         "lock_file": ("str", "/tmp/picontrol_nfc.lock"),
@@ -104,7 +105,8 @@ WEB_EDITABLE = frozenset([
     ("led", "enabled"),
     ("nfc", "enabled"), ("nfc", "poll_interval"), ("nfc", "poll_interval_game"), ("nfc", "remove_delay"),
     ("nfc", "min_relaunch_interval"), ("nfc", "max_read_attempts"), ("nfc", "launch_at_start"),
-    ("nfc", "quit_on_remove"), ("nfc", "replace_running_game"), ("nfc", "rf_reset_each_poll"),
+    ("nfc", "quit_on_remove"), ("nfc", "replace_running_game"), ("nfc", "launch_on_reset_press"),
+    ("nfc", "rf_reset_each_poll"),
     ("nfc", "write_timeout"),
 ])
 

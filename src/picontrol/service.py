@@ -122,6 +122,10 @@ class Service:
             self._stop_event.set()
 
     def on_reset_short(self):
+        if self.nfc is not None and self.nfc.take_reset_press():
+            log.info("Reset button: a cassette is waiting, launching it (the game is not reset)")
+            self.led.blink(1)
+            return
         log.info("Reset button: reset game")
         self.retroarch.reset()
         self.led.blink(1)

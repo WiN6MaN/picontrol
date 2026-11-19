@@ -49,6 +49,12 @@ def run_checks(cfg, config_path=None, autostart=AUTOSTART, runtime_dir=None):
             "set network_cmd_enable = true (and network_cmd_port = %d) in %s; reset/quit need it"
             % (cfg.retroarch.port, cfg.paths.retroarch_cfg))
 
+    if cfg.nfc.enabled and cfg.nfc.launch_on_reset_press and not cfg.reset.enabled:
+        add(FAIL, "Launch with the Reset button",
+            "launch_on_reset_press needs [reset] enabled = true, otherwise no cassette ever starts")
+    elif cfg.nfc.enabled and cfg.nfc.launch_on_reset_press:
+        add(OK, "Launch with the Reset button", "cassettes wait for a short press of Reset")
+
     if cfg.fan.enabled:
         readable = os.access(cfg.fan.temp_path, os.R_OK)
         add(OK if readable else WARN, "CPU temperature sensor", cfg.fan.temp_path)

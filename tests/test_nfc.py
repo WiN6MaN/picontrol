@@ -124,9 +124,17 @@ def test_quit_on_remove_is_off_by_default(service, reader, sim, launcher):
 
 
 # ---------------------------------------------------------------- a tag presented while a game runs
-def test_a_new_tag_replaces_the_running_game_by_default(service, reader, sim, launcher, cfg):
-    assert cfg.nfc.replace_running_game is True
+def test_a_running_game_is_protected_by_default(service, reader, sim, launcher, cfg):
+    assert cfg.nfc.replace_running_game is False
     launcher.procs.running.add(launcher._emulators)  # a game started from EmulationStation is running
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    assert launcher.launched == []
+
+
+def test_a_new_tag_replaces_the_running_game_when_asked(service, reader, sim, launcher, cfg):
+    cfg.nfc.replace_running_game = True
+    launcher.procs.running.add(launcher._emulators)
     tagged(reader, sim, ["nes", "Zelda II.nes"])
     service.step(now=0)
     assert launcher.launched == [("nes", "Zelda II.nes")]
@@ -184,6 +192,185 @@ def test_an_ignored_tag_does_not_start_the_relaunch_delay(service, reader, sim, 
     sim.place(card)
     service.step(now=2.7)  # only 2.7 s after the ignored tag: it must not count as a launch
     assert launcher.launched == [("nes", "Zelda II.nes")]
+
+
+# ---------------------------------------------------------------- launching with the Reset button
+@pytest.fixture
+def pressing(cfg):
+    cfg.nfc.launch_on_reset_press = True
+    return cfg
+
+
+def led_writes(gpio, cfg):
+    return [value for pin, value in gpio.writes if pin == cfg.pins.led]
+
+
+def test_the_cassette_waits_for_the_reset_button(service, reader, sim, launcher, pressing, gpio):
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    gpio.writes.clear()
+    for t in (0.0, 0.5, 1.0):
+        service.step(now=t)
+    assert launcher.launched == []  # not launched by itself
+    assert led_writes(gpio, pressing).count(1) == 2  # two short blinks: "recognised, press Reset"
+    assert service.take_reset_press() is True  # the press is consumed: the game must not be reset
+    service.step(now=1.5)
+    assert launcher.launched == [("nes", "Zelda II.nes")]
+
+
+def test_reset_keeps_its_meaning_without_a_waiting_cassette(service, reader, sim, launcher, pressing):
+    assert service.take_reset_press() is False  # nothing in the reader
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    service.take_reset_press()
+    service.step(now=0.5)
+    assert launcher.launched == [("nes", "Zelda II.nes")]
+    assert service.take_reset_press() is False  # the cassette stays in but was already launched: Reset resets
+    service.step(now=1.0)
+    assert len(launcher.launched) == 1
+
+
+def test_a_press_without_the_setting_never_waits(service, reader, sim, launcher):
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    assert launcher.launched == [("nes", "Zelda II.nes")]  # launched at once, as before
+    assert service.take_reset_press() is False
+
+
+def test_removing_the_cassette_cancels_the_wait(service, reader, sim, launcher, pressing):
+    pressing.nfc.remove_delay = 2.0  # the real value
+    card = tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    sim.remove()
+    service.step(now=0.5)  # absent, removal not confirmed yet
+    assert service.take_reset_press() is True  # still counted as waiting...
+    service.step(now=1.0)
+    assert launcher.launched == []  # ...but nothing is in the field to launch
+    service.step(now=2.5)  # removal confirmed
+    assert service.take_reset_press() is False
+    sim.place(card)
+    service.step(now=3.0)  # the cassette is back: it waits again, the old press is forgotten
+    service.step(now=3.5)
+    assert launcher.launched == []
+
+
+def test_a_missed_read_does_not_lose_the_press(service, reader, sim, launcher, pressing):
+    pressing.nfc.remove_delay = 2.0
+    card = tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    assert service.take_reset_press() is True
+    sim.remove()  # the tag flickers out of the field for one poll
+    service.step(now=0.5)
+    assert launcher.launched == []
+    sim.place(card)
+    service.step(now=1.0)
+    assert launcher.launched == [("nes", "Zelda II.nes")]
+
+
+def test_another_cassette_replaces_the_waiting_one(service, reader, sim, launcher, pressing):
+    tagged(reader, sim, ["nes", "Zelda II.nes"], uid=(1, 2, 3, 4))
+    service.step(now=0)
+    sim.remove()
+    tagged(reader, sim, ["arcade", "Quake Arena.zip"], uid=(9, 9, 9, 9))
+    service.step(now=0.5)
+    assert service.take_reset_press() is True
+    service.step(now=1.0)
+    assert launcher.launched == [("arcade", "Quake Arena.zip")]
+
+
+def test_two_quick_presses_launch_once_and_both_are_swallowed(service, reader, sim, launcher, pressing):
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    assert service.take_reset_press() is True and service.take_reset_press() is True
+    service.step(now=0.5)
+    assert len(launcher.launched) == 1
+
+
+def test_an_old_press_is_dropped(service, reader, sim, launcher, pressing):
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    service.take_reset_press()
+    service._press_at -= 60  # the reader was busy for a long time
+    service.step(now=0.5)
+    assert launcher.launched == []
+
+
+def test_a_cassette_cannot_cut_a_running_game_even_with_the_reset_button(service, reader, sim, launcher, pressing):
+    launcher.procs.running.add(launcher._emulators)  # default: a running game is protected
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    assert service.take_reset_press() is False  # the tag was ignored: Reset resets the game
+    service.step(now=0.5)
+    assert launcher.launched == []
+
+
+def test_a_game_started_after_the_cassette_is_not_cut_by_reset(service, reader, sim, launcher, pressing):
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)  # waiting
+    launcher.procs.running.add(launcher._emulators)  # the player starts another game from EmulationStation
+    assert service.take_reset_press() is False  # Reset resets that game
+    launcher.procs.running.clear()  # ...it ends: the cassette still waits
+    assert service.take_reset_press() is True
+    service.step(now=1.0)
+    assert launcher.launched == [("nes", "Zelda II.nes")]
+
+
+def test_with_replacing_on_the_reset_button_launches_over_a_running_game(service, reader, sim, launcher, pressing):
+    pressing.nfc.replace_running_game = True
+    launcher.procs.running.add(launcher._emulators)
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    assert launcher.launched == []
+    assert service.take_reset_press() is True
+    service.step(now=0.5)
+    assert launcher.launched == [("nes", "Zelda II.nes")]
+
+
+def test_without_a_reset_button_cassettes_launch_at_once(service, reader, sim, launcher, pressing):
+    pressing.reset.enabled = False  # nothing could ever press it
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    assert launcher.launched == [("nes", "Zelda II.nes")]
+    assert service.take_reset_press() is False
+
+
+def test_the_cassette_present_at_start_waits_too(service, reader, sim, launcher, pressing):
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)  # first cycle: launch_at_start is on by default
+    assert launcher.launched == [] and service.take_reset_press() is True
+    service.step(now=0.5)
+    assert launcher.launched == [("nes", "Zelda II.nes")]
+
+
+def test_the_cassette_present_at_start_is_ignored_without_launch_at_start(service, reader, sim, launcher, pressing):
+    pressing.nfc.launch_at_start = False
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    assert service.take_reset_press() is False
+
+
+def test_writing_a_tag_clears_the_wait(service, reader, sim, launcher, pressing):
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    service.step(now=0)
+    service.request_write_current()
+    service.step(now=0.5)  # the tag in the field receives the current game
+    assert service.take_reset_press() is False
+    service.step(now=1.0)
+    assert launcher.launched == []
+
+
+def test_the_reset_button_thread_and_the_nfc_thread_work_together(service, reader, sim, launcher, pressing):
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    stop = threading.Event()
+    thread = threading.Thread(target=service.run, args=(stop,))
+    thread.start()
+    try:
+        assert wait_until(lambda: service._pending is not None)
+        assert launcher.launched == []
+        assert service.take_reset_press() is True  # as the button thread does
+        assert wait_until(lambda: launcher.launched == [("nes", "Zelda II.nes")])
+    finally:
+        stop.set()
+        thread.join(5)
 
 
 def test_min_relaunch_interval(service, reader, sim, launcher, cfg):

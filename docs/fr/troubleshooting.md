@@ -28,6 +28,8 @@ Pour arrêter le service en cours pendant vos essais : `pkill -f "python3 -m pic
 | « is the tag locked? » | Le tag est en lecture seule | Utilisez un autre tag : un tag verrouillé ne peut pas être réécrit |
 | « not NDEF-formatted » | Un tag non formaté (pas de conteneur de capacités) | Formatez-le une fois avec une application NFC de téléphone (« formater le tag »), puis réécrivez-le |
 | « ROM not found » | Le système ou le nom de fichier ne correspond pas au dossier de ROM | Les noms sont sensibles à la casse : `picontrol tag read` puis comparez avec `ls ~/RetroPie/roms/<système>` |
+| La cassette fait clignoter la LED deux fois mais rien ne démarre | `launch_on_reset_press` est activé : la cassette vous attend | Appuyez brièvement sur le bouton Reset (un appui long écrit un tag à la place) |
+| Une cassette ne fait rien pendant qu'un jeu tourne | Voulu : `replace_running_game` est désactivé, un jeu en cours n'est donc jamais coupé | Quittez le jeu, retirez la cassette et réinsérez-la ; ou mettez `replace_running_game = true` |
 | Le jeu se lance deux fois ou se relance sans cesse | Tag en bord de champ, détection instable | Placez bien le tag ; augmentez `remove_delay` ; envoyez un journal `--debug` si cela persiste |
 | « The reader is busy » | Une autre commande ou le service tient le lecteur | Réessayez ; les commandes attendent jusqu'à 20 s |
 | Erreurs NFC aléatoires | Fils longs ou mal serrés, module hors mode SPI, bruit d'alimentation | `picontrol --debug run` ; vérifiez le câblage et l'alimentation |

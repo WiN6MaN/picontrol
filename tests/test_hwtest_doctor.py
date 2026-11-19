@@ -60,6 +60,19 @@ def test_doctor_on_a_complete_installation(cfg, tmp_path):
     assert status["CPU temperature sensor"] == doctor.OK
 
 
+def test_doctor_checks_the_reset_button_launch_setting(cfg, tmp_path):
+    def row(checks):
+        return [c for c in checks if c[1] == "Launch with the Reset button"]
+
+    assert row(doctor.run_checks(cfg, autostart=str(tmp_path / "none"))) == []  # off: nothing to say
+    cfg.nfc.launch_on_reset_press = True
+    (status, _, _), = row(doctor.run_checks(cfg, autostart=str(tmp_path / "none")))
+    assert status == doctor.OK
+    cfg.reset.enabled = False  # cassettes would wait for a button that is switched off
+    (status, _, detail), = row(doctor.run_checks(cfg, autostart=str(tmp_path / "none")))
+    assert status == doctor.FAIL and "enabled = true" in detail
+
+
 def test_doctor_flags_problems(cfg, tmp_path):
     cfg.paths.roms_dir = str(tmp_path / "nowhere")
     cfg.paths.runcommand = str(tmp_path / "nothing.sh")

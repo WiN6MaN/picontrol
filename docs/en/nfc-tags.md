@@ -53,9 +53,10 @@ One improvement over the original decoder: it located records by looking for the
 ## Behaviour while a game runs
 
 - A game started by a tag stops EmulationStation and restarts it afterwards. EmulationStation cannot be asked to start a game from outside, and it must release the screen and controllers first. The game and EmulationStation run under the [console session](architecture.md#the-console-session), so the RetroPie menus keep working afterwards. Games started from EmulationStation itself are not affected. Tips to speed the restart up: [installation](installation.md#faster-emulationstation).
-- Presenting a different tag while a game runs stops the game and launches the new one. With `replace_running_game = false` the tag is ignored while a game runs: quit the game, then remove the tag and present it again.
-- `quit_on_remove = true` quits the game when its tag is removed. With `replace_running_game = false` as well, you get a "swap cartridges" feel: remove the cartridge to close the game, wait for EmulationStation to come back, insert the next one.
+- A tag presented while a game runs is ignored by default, so a game is never cut by accident: quit the game, then remove the tag and present it again. With `replace_running_game = true`, the tag stops the running game and launches its own.
+- `quit_on_remove = true` quits the game when its tag is removed. Together with the default `replace_running_game = false`, you get a "swap cartridges" feel: remove the cartridge to close the game, wait for EmulationStation to come back, insert the next one.
 - Removing and re-presenting the same tag launches again; leaving it in place does not.
+- `launch_on_reset_press = true`: a cassette does not start by itself. The LED blinks twice to say it was recognised, and its game starts when you press the Reset button briefly. The Reset button keeps its usual meaning whenever no cassette is waiting (no cassette in the reader, or its game was already launched): it resets the running game. A cassette already in the reader at start-up waits as well (`launch_at_start`). Removing the cassette cancels the wait. This needs `[reset] enabled = true`; `picontrol doctor` checks it.
 
 ## Not supported
 

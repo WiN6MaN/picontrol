@@ -82,6 +82,31 @@ def test_reset_short_press_resets_the_game(svc_factory):
     assert made["sent"] == ["RESET"]
 
 
+def test_reset_press_launches_a_waiting_cassette_instead_of_resetting(svc_factory, cfg, sim):
+    cfg.nfc.launch_on_reset_press = True
+    service, made = svc_factory()
+    launched = []
+    service.launcher.launch = lambda system, path: launched.append((system, path))
+    sim.place(Card([1, 2, 3, 4]))
+    tagstore.write_records(service.nfc.reader, service.nfc.reader.read_uid(), ["nes", "Zelda II.nes"])
+    sim.card_state = "idle"
+    service.nfc.step(now=0)
+    assert launched == []  # waiting for the button
+    service.on_reset_short()
+    assert made["sent"] == []  # the running game is NOT reset
+    service.nfc.step(now=0.5)
+    assert [system for system, _ in launched] == ["nes"]
+    service.on_reset_short()  # the cassette has been launched: Reset is a reset again
+    assert made["sent"] == ["RESET"]
+
+
+def test_reset_press_still_resets_when_no_cassette_waits(svc_factory, cfg):
+    cfg.nfc.launch_on_reset_press = True
+    service, made = svc_factory()
+    service.on_reset_short()
+    assert made["sent"] == ["RESET"]
+
+
 def test_reset_long_press_requests_a_tag_write(svc_factory, cfg, procs):
     service, made = svc_factory()
     procs.running.add(service.launcher._emulators)

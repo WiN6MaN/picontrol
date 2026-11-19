@@ -17,7 +17,7 @@ La position de l'interrupteur fait foi : si le Pi démarre alors qu'il est sur O
 
 | Vous faites | Le service fait |
 |---|---|
-| Appui court | Envoie `RESET` à RetroArch (redémarre le jeu en cours) |
+| Appui court | Envoie `RESET` à RetroArch (redémarre le jeu en cours). Avec `launch_on_reset_press = true` et une cassette en attente dans le lecteur, lance plutôt cette cassette et ne redémarre **pas** le jeu |
 | Appui maintenu `long_press` secondes | Écrit le jeu en cours sur le prochain tag présenté (voir [tags NFC](nfc-tags.md)) |
 
 Le reset et la fermeture passent par les commandes réseau de RetroArch : ils n'agissent donc que sur les émulateurs basés sur RetroArch.
@@ -28,7 +28,7 @@ Allumé à `threshold_on` °C, éteint à `threshold_off` °C, et jamais éteint
 
 ### NFC
 
-Présenter un tag lance son jeu une seule fois. Le laisser en place ne fait rien (le jeu n'est pas relancé quand il se termine). Un tag est considéré retiré après `remove_delay` secondes d'absence ; le présenter de nouveau relance le jeu. Détails dans [tags NFC](nfc-tags.md).
+Présenter un tag lance son jeu une seule fois. Le laisser en place ne fait rien (le jeu n'est pas relancé quand il se termine). Un tag est considéré retiré après `remove_delay` secondes d'absence ; le présenter de nouveau relance le jeu. Un tag présenté pendant qu'un jeu tourne est ignoré, sauf si `replace_running_game` est activé. Avec `launch_on_reset_press`, un tag attend un appui court sur le bouton Reset avant de lancer son jeu. Détails dans [tags NFC](nfc-tags.md).
 
 ### Interface web
 
@@ -40,6 +40,7 @@ Optionnelle et désactivée par défaut : état, tags NFC, quelques réglages s�
 |---|---|
 | Allumée en continu | Le service tourne |
 | Un clignotement court | Bouton reset pressé |
+| Deux clignotements courts | Une cassette a été reconnue et attend le bouton Reset (`launch_on_reset_press`) |
 | Trois clignotements rapides | Appui long reconnu : présentez un tag |
 | Trois clignotements lents | Tag écrit et vérifié |
 | Six clignotements très rapides | Erreur (rien à écrire, aucun tag à temps, échec d'écriture) |
@@ -63,7 +64,8 @@ Optionnelle et désactivée par défaut : état, tags NFC, quelques réglages s�
 | | `remove_delay` | `2.0` | Absence nécessaire pour compter un retrait |
 | | `launch_at_start` | `true` | Lancer le tag déjà présent au démarrage (le jeu démarre avant EmulationStation) |
 | | `quit_on_remove` | `false` | Quitter le jeu quand son tag est retiré |
-| | `replace_running_game` | `true` | Un tag présenté pendant un jeu l'arrête et lance celui du tag ; `false` ignore le tag tant qu'un jeu tourne |
+| | `replace_running_game` | `false` | `false` : un tag présenté pendant un jeu est ignoré (le jeu n'est jamais coupé) ; `true` : il arrête le jeu et lance celui du tag |
+| | `launch_on_reset_press` | `false` | Une cassette attend un appui court sur Reset avant de lancer son jeu ; sans cassette en attente, Reset réinitialise toujours le jeu |
 | | `rf_reset_each_poll` | `true` | Couper le champ RF avant chaque sondage (voir [architecture](architecture.md)) |
 | | `write_timeout` | `15` | Secondes pour présenter un tag après un appui long |
 | `[paths]` | `roms_dir`, `runcommand`, `retroarch_cfg`, `emulationstation_command`, `extra_emulators` | valeurs RetroPie | Emplacements |
