@@ -67,6 +67,8 @@ The fix is a process that never lets go of the console:
 
 Every process keeps the console, exactly like a game started from EmulationStation. The service only drops a small request file (names validated again by the session; no shell, argument lists only) and stops EmulationStation. If no session is running (start-up block not updated yet), the service falls back to the old direct method and logs a warning; `picontrol doctor` reports it. If the session itself fails, plain EmulationStation is started.
 
+**A tag already in the reader at boot.** EmulationStation takes a while to load (longer with thousands of games) and only obeys a polite stop (`SIGTERM`) once it has finished. Killing it by force would leave the console keyboard in a broken state (the controller then stops working in the RetroPie menus). So at start-up, when tags are launched at start (`launch_at_start`), the session first waits a few seconds (12 at most) for the service's first scan: if a tag is present, its game starts at once and EmulationStation is only started afterwards; otherwise EmulationStation starts as usual. Later on, EmulationStation is never killed by force unless it has been stuck for two minutes.
+
 A test reproduces the defect with real processes on a pseudo-terminal and checks that the game and EmulationStation stay in the terminal's foreground process group; a control test confirms that the old method is detected.
 
 ## Testing strategy

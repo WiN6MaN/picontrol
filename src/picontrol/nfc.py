@@ -15,7 +15,7 @@ import logging
 import threading
 import time
 
-from . import tagstore
+from . import session, tagstore
 from .errors import BusyError, NotOurTag, ReaderError, TagError
 from .lock import ReaderLock
 from .pn532 import PN532, hexstr
@@ -63,8 +63,10 @@ class TagJob:
 
 
 class NfcService:
-    def __init__(self, cfg, reader, launcher, led, clock=time.monotonic, sleep=time.sleep):
+    def __init__(self, cfg, reader, launcher, led, clock=time.monotonic, sleep=time.sleep, runtime_dir=None):
         self.cfg, self.reader, self.launcher, self.led = cfg, reader, launcher, led
+        self.runtime_dir = runtime_dir
+        self._announced = False  # the console session is told once that the first scan is done
         self._clock, self._sleep = clock, sleep
         self.uid = None
         self.last_seen = 0.0
@@ -225,4 +227,7 @@ class NfcService:
                 log.exception("Unexpected NFC error")
                 self.ready = False
                 interval = 2.0
+            if not self._announced:  # success or not: the console session must not wait for us any longer
+                self._announced = True
+                session.announce_ready(self.runtime_dir)
             stop.wait(interval)

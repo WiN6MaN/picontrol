@@ -2,6 +2,15 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). / Format inspiré de Keep a Changelog.
 
+## [0.3.2] - 2026-11-19
+
+- Fixed: with a tag already in the reader at boot, the controller stopped responding in the RetroPie menus. The log showed why: EmulationStation was still loading, ignored the polite stop for 3 seconds and was then killed by force, which leaves the console keyboard in a broken state. Now the console session waits (12 s at most) for the NFC service's first scan at boot: a tag present at start launches its game before EmulationStation even starts. EmulationStation is no longer killed by force (only the emulators are, after 8 s; EmulationStation only after 2 minutes of being stuck), in the console session and in the direct fallback alike.
+  / Corrigé : avec une cassette déjà dans le lecteur au démarrage, la manette ne répondait plus dans les menus RetroPie. Le journal montrait la cause : EmulationStation chargeait encore, ignorait l'arrêt poli pendant 3 secondes puis était tué de force, ce qui laisse le clavier de la console dans un état cassé. Désormais la session de console attend (12 s au maximum) le premier balayage du service NFC au démarrage : une cassette présente au démarrage lance son jeu avant même qu'EmulationStation démarre. EmulationStation n'est plus tué de force (seuls les émulateurs le sont, après 8 s ; EmulationStation seulement après 2 minutes de blocage), dans la session de console comme dans le repli direct.
+- New: the service tells the session when its first scan is done (`picontrol-ready-<uid>` next to the request file); with NFC disabled or `launch_at_start = false` the session does not wait at all. A power-off during a launch no longer leaves the launcher waiting.
+  / Nouveau : le service indique à la session que son premier balayage est fait (`picontrol-ready-<uid>`, à côté du fichier de demande) ; avec le NFC désactivé ou `launch_at_start = false`, la session n'attend pas du tout. Une extinction pendant un lancement ne laisse plus le lanceur en attente.
+- 15+ new tests, including real processes on a pseudo-terminal for a tag present at boot.
+  / Plus de 15 nouveaux tests, dont de vrais processus sur un pseudo-terminal pour une cassette présente au démarrage.
+
 ## [0.3.1] - 2026-11-18
 
 - Fixed: after a game started from an NFC tag, the RetroPie menus (RetroPie Setup, Raspi-Config, Wi-Fi...) misbehaved and jumped back to EmulationStation. The original Pi Control had the same defect. Cause: killing EmulationStation ended `autostart.sh`, the login shell took the console back, and the game and EmulationStation, started later by a background service, ran behind it. Now EmulationStation runs under a foreground `picontrol session`, which also runs the tag games, so everything keeps the console.

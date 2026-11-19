@@ -18,6 +18,12 @@ def rt(tmp_path):
     return str(folder)
 
 
+@pytest.fixture(autouse=True)
+def no_boot_wait(cfg):
+    """The tests of the loop must not wait for a (non-existent) NFC service; the 'boot' tests switch it back on."""
+    cfg.nfc.launch_at_start = False
+
+
 # ------------------------------------------------------------------ roms.py
 @pytest.mark.parametrize("system, rom", [
     (None, "x.nes"), ("nes", None), (5, "x"), ("nes", 5), ("nes", ["x"]), ("nes; id", "x"), ("nes", "../x"),
@@ -304,3 +310,99 @@ def test_stale_pid_file_is_replaced(make, rt):
     sess, script = make((None, 0))
     sess.run()
     assert script.pid_seen == [True]
+
+
+# ------------------------------------------------------------------ waiting for the first scan at boot
+class FakeTime:
+    """A clock the fake sleep advances, so no test waits for real."""
+
+    def __init__(self):
+        self.now = 0.0
+        self.slept = 0.0
+
+    def __call__(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+        self.slept += seconds
+
+
+@pytest.fixture
+def boot(cfg, rt):
+    """A session for a boot where the NFC service is expected to launch tags (the defaults)."""
+    def build(*steps, hook=None):
+        cfg.nfc.launch_at_start = True
+        clock = FakeTime()
+        script = Script(rt, *steps)
+
+        def sleep(seconds):
+            clock.sleep(seconds)
+            if hook:
+                hook(clock)
+
+        return Session(cfg, call=script, runtime_dir=rt, sleep=sleep, clock=clock), script, clock
+
+    return build
+
+
+def test_ready_marker(rt):
+    assert not session.is_ready(rt)
+    session.announce_ready(rt)
+    session.announce_ready(rt)  # twice is fine
+    assert session.is_ready(rt) and oct(os.stat(session.ready_path(rt)).st_mode & 0o777) == "0o600"
+    assert session.announce_ready(str(rt) + "/missing") is None  # best effort: never raises
+
+
+def test_a_tag_present_at_boot_starts_its_game_before_emulationstation(boot, cfg, rt):
+    def service_scans(clock):
+        if clock.slept >= 1.5 and not session.request_pending(rt) and not session.is_ready(rt):
+            session.request_launch("nes", "Zelda II.nes", rt)  # the first scan finds the tag...
+            session.announce_ready(rt)  # ...and only then reports in
+
+    sess, script, clock = boot((None, 0), (None, 0), hook=service_scans)
+    sess.run(["--x"])
+    assert script.commands[0][:4] == [cfg.paths.runcommand, "0", "_SYS_", "nes"]  # the game first: no ES killed
+    assert script.commands[1] == list(cfg.paths.emulationstation_command)  # then the fast ES start, no splash
+    assert 1.4 < clock.slept < 3  # it did not wait longer than needed
+
+
+def test_without_a_tag_emulationstation_starts_as_soon_as_the_service_reports(boot, rt):
+    sess, script, clock = boot((None, 0), hook=lambda c: session.announce_ready(rt) if c.slept >= 1 else None)
+    sess.run(["--x"])
+    assert script.commands == [["emulationstation", "--x"]] and clock.slept < 2
+
+
+def test_the_wait_has_a_limit_if_the_service_never_reports(boot):
+    sess, script, clock = boot((None, 0))
+    sess.run()
+    assert script.commands == [["emulationstation"]]
+    assert session.BOOT_WAIT <= clock.slept < session.BOOT_WAIT + 1
+
+
+def test_no_wait_when_the_marker_is_already_there(boot, rt):
+    session.announce_ready(rt)
+    sess, script, clock = boot((None, 0))
+    sess.run()
+    assert clock.slept == 0 and script.commands == [["emulationstation"]]
+
+
+def test_no_wait_when_tags_are_not_launched_at_start_or_nfc_is_off(boot, cfg):
+    for setting in ("launch_at_start", "enabled"):
+        sess, script, clock = boot((None, 0))
+        setattr(cfg.nfc, setting, False)  # after the build, which switches the boot wait on
+        sess.run()
+        assert clock.slept == 0 and script.commands == [["emulationstation"]]
+        setattr(cfg.nfc, setting, True)
+
+
+def test_a_request_found_at_the_end_of_the_wait_is_not_lost(boot, cfg, rt):
+    # the request and the marker appear in the same instant: the request must be played
+    def both(clock):
+        if clock.slept >= 0.3 and not session.is_ready(rt):
+            session.request_launch("nes", "Zelda II.nes", rt)
+            session.announce_ready(rt)
+
+    sess, script, _ = boot((None, 0), (None, 0), hook=both)
+    sess.run()
+    assert script.commands[0][3] == "nes"

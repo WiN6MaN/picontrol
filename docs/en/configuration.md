@@ -61,7 +61,7 @@ Optional and off by default: status, NFC tags, a few safe settings and restart/s
 | | `temp_path` | `/sys/class/thermal/thermal_zone0/temp` | Kernel temperature file |
 | `[nfc]` | `poll_interval`, `poll_interval_game` | `0.5`, `1.0` | Seconds between polls (idle / game running) |
 | | `remove_delay` | `2.0` | Absence needed to count as removed |
-| | `launch_at_start` | `true` | Launch the tag already present at start-up |
+| | `launch_at_start` | `true` | Launch the tag already present at start-up (the game starts before EmulationStation does) |
 | | `quit_on_remove` | `false` | Quit the game when its tag is removed |
 | | `rf_reset_each_poll` | `true` | Cut the RF field before each poll (see [architecture](architecture.md)) |
 | | `write_timeout` | `15` | Seconds to present a tag after a long press |

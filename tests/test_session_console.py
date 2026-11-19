@@ -105,15 +105,22 @@ def setup(box):  # noqa: F811
     for name, label in (("emulationstation", "es"), ("runcommand.sh", "game")):
         (fakes / name).write_text(FAKE_PROGRAM % (label, log))
         (fakes / name).chmod(0o755)
-    (tmp / "etc" / "picontrol.conf").write_text(
-        "[paths]\nroms_dir = %s\nruncommand = %s\nemulationstation_command = %s --no-splash\n[logging]\nfile = %s\n"
-        % (tmp / "roms", fakes / "runcommand.sh", fakes / "emulationstation", tmp / "picontrol.log"))
+    conf = tmp / "etc" / "picontrol.conf"
+
+    def configure(launch_at_start):
+        conf.write_text(
+            "[paths]\nroms_dir = %s\nruncommand = %s\nemulationstation_command = %s --no-splash\n"
+            "[logging]\nfile = %s\n[nfc]\nlaunch_at_start = %s\n"
+            % (tmp / "roms", fakes / "runcommand.sh", fakes / "emulationstation", tmp / "picontrol.log",
+               "true" if launch_at_start else "false"))
+
+    configure(False)  # no NFC service in this harness: by default the session must not wait for one
     # the real autostart.sh written by the installer, minus the background service (it needs the GPIO hardware)
     text = [line for line in (configs / "autostart.sh").read_text().splitlines() if "picontrol run" not in line]
     (tmp / "autostart.sh").write_text("\n".join(text) + "\n")
     env = dict(env, PATH="%s:%s" % (fakes, os.environ["PATH"]), PICONTROL_RUNTIME_DIR=str(run), HOME=str(tmp))
     console = Console(env)
-    info = {"autostart": str(tmp / "autostart.sh"), "log": str(log), "run": str(run),
+    info = {"autostart": str(tmp / "autostart.sh"), "log": str(log), "run": str(run), "configure": configure,
             "rom": os.path.realpath(str(roms / "Zelda II.nes"))}
     yield console, info
     console.close([pid for _, pid, _ in events(info["log"])])
@@ -168,3 +175,51 @@ def test_the_old_method_loses_the_console(setup):
     time.sleep(0.5)
     console.drain()
     assert os.getpgid(game_pid) != console.foreground(), "the control experiment no longer detects the bug"
+
+
+# ------------------------------------------------------------------ a tag already in the reader at boot
+def test_a_tag_present_at_boot_plays_before_emulationstation_even_starts(setup):
+    """The second bug: ES was killed by force while loading, which broke the console keyboard for the menus."""
+    console, info = setup
+    log, run = info["log"], info["run"]
+    info["configure"](True)  # the default: tags are launched at start-up
+    console.type("bash %s" % info["autostart"])
+    wait_for(console, lambda: session.session_running(run), "the console session")
+    time.sleep(0.5)
+    assert events(log) == []  # the session is waiting for the first scan: EmulationStation has not started
+
+    # the NFC service's first scan finds a tag: request first, then 'ready'
+    session.request_launch("nes", "Zelda II.nes", run)
+    session.announce_ready(run)
+    label, game_pid, args = wait_for(console, lambda: events(log), "the game")[0]
+    assert label == "game" and args == "0 _SYS_ nes %s" % info["rom"]
+    assert os.getpgid(game_pid) == console.foreground()
+    time.sleep(0.5)
+    assert [e[0] for e in events(log)] == ["game"]  # still no EmulationStation, so nothing to kill
+
+    # the game ends: only now EmulationStation starts, fast, in the foreground
+    os.kill(game_pid, signal.SIGTERM)
+    _, es_pid, args = wait_for(console, lambda: [e for e in events(log) if e[0] == "es"], "EmulationStation")[0]
+    assert args == "--no-splash" and os.getpgid(es_pid) == console.foreground()
+
+
+def test_without_a_tag_at_boot_emulationstation_starts_once_the_service_has_scanned(setup):
+    console, info = setup
+    log, run = info["log"], info["run"]
+    info["configure"](True)
+    console.type("bash %s" % info["autostart"])
+    wait_for(console, lambda: session.session_running(run), "the console session")
+    time.sleep(0.5)
+    assert events(log) == []
+    session.announce_ready(run)  # first scan: nothing there
+    label, es_pid, args = wait_for(console, lambda: events(log), "EmulationStation")[0]
+    assert (label, args) == ("es", "")  # the plain start, with the arguments of the autostart line
+    assert os.getpgid(es_pid) == console.foreground()
+
+
+def test_if_the_service_never_reports_emulationstation_still_starts(setup):
+    console, info = setup
+    info["configure"](True)
+    console.type("bash %s" % info["autostart"])
+    label, _, _ = wait_for(console, lambda: events(info["log"]), "EmulationStation", timeout=session.BOOT_WAIT + 15)[0]
+    assert label == "es"

@@ -13,6 +13,7 @@ import threading
 import time
 
 from .buttons import PowerSwitch, ResetButton
+from . import session
 from .errors import LaunchError, PicontrolError
 from .fan import FanController, read_temperature
 from .gpio import Gpio
@@ -61,7 +62,9 @@ class Service:
         self.retroarch = RetroArch(cfg.retroarch.host, cfg.retroarch.port, dry_run=dry_run)
         self.launcher = Launcher(cfg, self.retroarch, procs=procs, popen=popen, dry_run=dry_run,
                                  runtime_dir=runtime_dir)
-        self.nfc = (NfcService(cfg, reader or reader_from_config(cfg, self.gpio), self.launcher, self.led)
+        self.runtime_dir = runtime_dir
+        self.nfc = (NfcService(cfg, reader or reader_from_config(cfg, self.gpio), self.launcher, self.led,
+                               runtime_dir=runtime_dir)
                     if cfg.nfc.enabled else None)
         self.fan = None
         if cfg.fan.enabled:
@@ -161,6 +164,8 @@ class Service:
             workers.append(Worker("nfc", self.nfc.run, stop))
         if self.web:
             workers.append(Worker("web", self.web.run, stop))
+        if self.nfc is None:  # nothing to scan: the console session need not wait for a tag
+            session.announce_ready(self.runtime_dir)
         for worker in workers:
             worker.start()
         log.info("picontrol running: %s%s", ", ".join(w.name for w in workers) or "nothing enabled",

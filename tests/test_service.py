@@ -106,6 +106,16 @@ def test_disabled_components_are_not_created(cfg, gpio, reader, procs):
     service.on_reset_long()  # must not crash without NFC
 
 
+def test_without_nfc_the_console_session_is_told_at_once(cfg, gpio, procs, tmp_path):
+    from picontrol import session
+    cfg.nfc.enabled = cfg.fan.enabled = cfg.power.enabled = cfg.reset.enabled = False
+    service = Service(cfg, gpio=gpio, popen=FakePopen, procs=procs, runtime_dir=str(tmp_path))
+    stop = threading.Event()
+    stop.set()
+    service.run(stop, install_signals=False)
+    assert session.is_ready(str(tmp_path))
+
+
 def test_worker_restarts_a_crashing_target():
     stop = threading.Event()
     calls = []

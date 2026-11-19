@@ -32,6 +32,7 @@ To stop the running service while you experiment: `pkill -f "python3 -m picontro
 | "The reader is busy" | Another command or the service holds the reader | Retry; commands wait up to 20 s |
 | Random NFC errors | Long or loose wires, module not in SPI mode, supply noise | `picontrol --debug run`; check wiring and the supply |
 | After a tag game, the RetroPie menus (RetroPie Setup, Raspi-Config, Wi-Fi) misbehave or jump back to EmulationStation | The game was started without the console session (start-up block not updated, or no reboot since) | `picontrol doctor` ("Console session running"); run `sudo ./install.sh` again, then reboot |
+| Controller dead in the RetroPie menus after booting with a tag in the reader | (0.3.0/0.3.1) EmulationStation was killed by force while loading | Update to 0.3.2 or later. As a stop-gap: set `launch_at_start = false` |
 | Returning from a tag game is slow | EmulationStation reloads its lists | See [installation](installation.md#faster-emulationstation) |
 | The web page does not load | Web interface off, no password, wrong address or port | `picontrol doctor`; check `[web] enabled`; the log gives the address (`tail /var/log/picontrol.log`) |
 | The browser warns about the certificate | Self-signed certificate | Expected: compare the fingerprint with the one in the log, then accept |

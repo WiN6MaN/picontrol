@@ -23,6 +23,19 @@ lance ES ; quand le service veut démarrer un jeu depuis un tag, il dépose un p
 ES ; la session lance alors ``runcommand.sh`` elle-même (comme ES) puis relance ES. Tous les processus gardent la
 console, comme pour un jeu lancé depuis ES.
 
+At boot, with a tag already in the reader
+-----------------------------------------
+EmulationStation takes a while to load and does not react to a polite stop until it is done. Killing it by
+force would leave the console in a broken state (the controller then stops working in the RetroPie menus). So,
+when the NFC service is expected to launch tags at start-up, the session first waits (a few seconds at most) for
+the service's first scan: if a tag is present the game starts at once and EmulationStation is only started
+afterwards; otherwise EmulationStation starts as usual.
+Au démarrage, avec une cassette déjà présente : EmulationStation met du temps à charger et ne réagit pas à un
+arrêt poli avant d'avoir fini. Le tuer de force laisserait la console dans un état cassé (la manette ne répond
+plus dans les menus RetroPie). La session attend donc (quelques secondes au plus) le premier balayage du service
+NFC : si une cassette est présente, le jeu démarre tout de suite et EmulationStation ne démarre qu'après ;
+sinon EmulationStation démarre comme d'habitude.
+
 Security: the request file lives in ``/dev/shm`` (RAM, shared by all users), so it is created with
 ``O_EXCL``/``O_NOFOLLOW``, read only if it is a small regular file owned by the same user, and its names are
 validated again before anything is run (no shell, argument lists only).
@@ -47,6 +60,7 @@ RUNTIME_DIR = "/dev/shm"
 MAX_REQUEST_BYTES = 4096
 MAX_REQUEST_AGE = 120.0  # seconds: an older request is stale and ignored
 ES_PROGRAM = "emulationstation"
+BOOT_WAIT = 12.0  # seconds: the most the session waits for the service's first scan before starting ES
 
 
 # ---------------------------------------------------------------------- request / pid files
@@ -61,6 +75,23 @@ def request_path(runtime_dir=None):
 
 def pid_path(runtime_dir=None):
     return os.path.join(_runtime(runtime_dir), "picontrol-session-%d.pid" % os.geteuid())
+
+
+def ready_path(runtime_dir=None):
+    return os.path.join(_runtime(runtime_dir), "picontrol-ready-%d" % os.geteuid())
+
+
+def announce_ready(runtime_dir=None):
+    """The NFC service has done its first scan (any tag present has been handled). Best effort."""
+    try:
+        fd = os.open(ready_path(runtime_dir), os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        os.close(fd)
+    except OSError as exc:
+        log.debug("cannot write the ready marker: %s", exc)
+
+
+def is_ready(runtime_dir=None):
+    return os.path.lexists(ready_path(runtime_dir))
 
 
 def _write_request(payload, runtime_dir=None):
@@ -173,8 +204,9 @@ def session_running(runtime_dir=None, proc_root="/proc"):
 class Session:
     """Runs EmulationStation, and tag-requested games, in the foreground of the console."""
 
-    def __init__(self, cfg, call=subprocess.call, runtime_dir=None):
+    def __init__(self, cfg, call=subprocess.call, runtime_dir=None, sleep=time.sleep, clock=time.monotonic):
         self.cfg, self._call, self.runtime_dir = cfg, call, runtime_dir
+        self._sleep, self._clock = sleep, clock
 
     def _run(self, argv):
         try:
@@ -206,6 +238,20 @@ class Session:
     def _unregister(self):
         _unlink(pid_path(self.runtime_dir))
 
+    def _wait_for_first_scan(self):
+        """At start-up, give the NFC service the time to launch a tag that is already in the reader."""
+        nfc = self.cfg.nfc
+        if not (nfc.enabled and nfc.launch_at_start) or is_ready(self.runtime_dir):
+            return
+        log.info("Waiting for the first tag scan before starting EmulationStation")
+        deadline = self._clock() + BOOT_WAIT
+        while self._clock() < deadline:
+            ready = is_ready(self.runtime_dir)  # read first: a request is always written before the marker
+            if request_pending(self.runtime_dir) or ready:
+                return
+            self._sleep(0.1)
+        log.warning("The NFC service did not report in %.0f s; starting EmulationStation", BOOT_WAIT)
+
     def run(self, es_args=()):
         """Run until EmulationStation ends on its own; return its exit status.
 
@@ -216,6 +262,7 @@ class Session:
         first = True
         status = 0
         try:
+            self._wait_for_first_scan()
             while True:
                 request = take_request(self.runtime_dir)
                 if request is not None:

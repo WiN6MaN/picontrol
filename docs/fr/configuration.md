@@ -61,7 +61,7 @@ Optionnelle et désactivée par défaut : état, tags NFC, quelques réglages s�
 | | `temp_path` | `/sys/class/thermal/thermal_zone0/temp` | Fichier de température du noyau |
 | `[nfc]` | `poll_interval`, `poll_interval_game` | `0.5`, `1.0` | Secondes entre deux sondages (repos / jeu en cours) |
 | | `remove_delay` | `2.0` | Absence nécessaire pour compter un retrait |
-| | `launch_at_start` | `true` | Lancer le tag déjà présent au démarrage |
+| | `launch_at_start` | `true` | Lancer le tag déjà présent au démarrage (le jeu démarre avant EmulationStation) |
 | | `quit_on_remove` | `false` | Quitter le jeu quand son tag est retiré |
 | | `rf_reset_each_poll` | `true` | Couper le champ RF avant chaque sondage (voir [architecture](architecture.md)) |
 | | `write_timeout` | `15` | Secondes pour présenter un tag après un appui long |

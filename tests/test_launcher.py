@@ -217,11 +217,38 @@ def test_launch_hands_the_game_to_the_session(sess_launcher, procs, tmp_path):
     assert sess_launcher.game_running()
 
 
-def test_the_request_is_repeated_until_the_session_takes_it_then_escalates(sess_launcher, procs):
-    sess_launcher.state["take_after"] = 8
+def kills(procs, pattern, sig=None):
+    return [call[1] for call in procs.calls if call[0] == "pkill" and call[2] == pattern
+            and (sig is None or call[1] == sig)]
+
+
+def test_emulationstation_is_never_killed_by_force_while_it_may_still_be_loading(sess_launcher, procs):
+    """The boot bug: ES ignores SIGTERM while it loads; a SIGKILL after 3 s broke the console keyboard."""
+    sess_launcher.state["take_after"] = 12  # 12 rounds of 0.5 s = 6 s: ES is still loading
     sess_launcher.launch("nes", "/roms/nes/x.nes")
-    signals = [call[1] for call in procs.calls if call[0] == "pkill" and call[2] == ES_PATTERN]
-    assert signals[:6] == ["TERM"] * 6 and signals[6:] == ["KILL"] * 2
+    assert kills(procs, ES_PATTERN, "KILL") == []
+    assert kills(procs, ES_PATTERN, "TERM") == ["TERM"] * 3  # asked politely again every 2 s (t = 0, 2, 4)
+
+
+def test_a_hung_emulator_is_killed_but_emulationstation_still_only_gets_term(sess_launcher, procs):
+    sess_launcher.state["take_after"] = 40  # 20 s
+    sess_launcher.launch("nes", "/roms/nes/x.nes")
+    assert kills(procs, sess_launcher._emulators, "KILL") and kills(procs, ES_PATTERN, "KILL") == []
+
+
+def test_an_emulationstation_that_never_stops_is_finally_killed(sess_launcher, procs):
+    sess_launcher.state["take_after"] = 10 ** 6
+    sess_launcher.launch("nes", "/roms/nes/x.nes")  # gives up after SESSION_WAIT, then the direct method runs
+    assert kills(procs, ES_PATTERN, "KILL")
+
+
+def test_a_shutdown_during_the_wait_leaves_the_exit_request_alone(sess_launcher, tmp_path):
+    def sleep(seconds):
+        sess_launcher.begin_shutdown()  # the power switch is flipped: the 'exit' request replaces ours
+
+    sess_launcher._sleep = sleep
+    sess_launcher.launch("nes", "/roms/nes/x.nes")
+    assert session.take_request(str(tmp_path)) == {"action": "exit"} and not sess_launcher.game_running()
 
 
 def test_an_unresponsive_session_falls_back_to_the_direct_method(sess_launcher, tmp_path, procs):
@@ -305,3 +332,31 @@ def test_begin_shutdown_without_session_or_in_dry_run_writes_nothing(launcher, c
     dry = Launcher(cfg, RecordingRetroArch(), procs=procs, dry_run=True, runtime_dir=str(tmp_path))
     dry.begin_shutdown()
     assert not session.request_pending(str(tmp_path))
+
+
+# ------------------------------------------------------------------ direct fallback: same patience with ES
+def test_direct_fallback_is_patient_with_emulationstation_too(cfg, procs, tmp_path):
+    clock = Clock()
+
+    def sleep(seconds):
+        clock.now += seconds
+        if clock.now > 100 + 7:  # ES finishes loading and obeys the stop after 7 s
+            procs.running.discard(ES_PATTERN)
+
+    procs.pkill = lambda sig, pattern, full=False: procs.calls.append(("pkill", sig, pattern, full))
+    launcher = Launcher(cfg, RecordingRetroArch(), procs=procs, popen=FakePopen, sleep=sleep,
+                        runtime_dir=str(tmp_path), clock=clock)
+    procs.running.add(ES_PATTERN)
+    launcher.launch("nes", "/roms/nes/x.nes")
+    assert kills(procs, ES_PATTERN, "KILL") == [] and kills(procs, ES_PATTERN, "TERM")
+    assert FakePopen.instances  # and the game then starts
+
+
+def test_direct_fallback_gives_up_on_a_stuck_emulationstation_after_killing_it(cfg, procs, tmp_path):
+    clock = Clock()
+    procs.pkill = lambda sig, pattern, full=False: procs.calls.append(("pkill", sig, pattern, full))
+    launcher = Launcher(cfg, RecordingRetroArch(), procs=procs, popen=FakePopen,
+                        sleep=lambda s: setattr(clock, "now", clock.now + s), runtime_dir=str(tmp_path), clock=clock)
+    procs.running.add(ES_PATTERN)
+    launcher.launch("nes", "/roms/nes/x.nes")
+    assert kills(procs, ES_PATTERN, "KILL") and FakePopen.instances

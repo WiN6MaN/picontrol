@@ -5,7 +5,7 @@ import time
 import pytest
 
 from fakes import Card, FakePopen, FakeProcs, NtagCard
-from picontrol import tagstore
+from picontrol import session, tagstore
 from picontrol.errors import BusyError, LaunchError, ReaderError
 from picontrol.launcher import Launcher
 from picontrol.nfc import NfcService, write_and_verify
@@ -43,8 +43,8 @@ def launcher(cfg):
 
 
 @pytest.fixture
-def service(cfg, reader, launcher, led):
-    return NfcService(cfg, reader, launcher, led, sleep=lambda s: None)
+def service(cfg, reader, launcher, led, tmp_path):
+    return NfcService(cfg, reader, launcher, led, sleep=lambda s: None, runtime_dir=str(tmp_path))
 
 
 def tagged(reader, sim, values, uid=(1, 2, 3, 4)):
@@ -240,6 +240,37 @@ def test_run_loop_yields_the_reader_to_other_processes(service, cfg, reader, sim
     assert wait_until(lambda: len(sim.commands) > before)
     stop.set()
     thread.join(5)
+
+
+def run_until(service, condition, timeout=10):
+    stop = threading.Event()
+    thread = threading.Thread(target=service.run, args=(stop,))
+    thread.start()
+    try:
+        return wait_until(condition, timeout)
+    finally:
+        stop.set()
+        thread.join(5)
+
+
+def test_the_console_session_is_told_after_the_first_scan_not_before(service, reader, sim, launcher, tmp_path):
+    """The session starts EmulationStation as soon as it is told; a tag present at boot must be launched first."""
+    tagged(reader, sim, ["nes", "Zelda II.nes"])
+    seen = []
+    original = launcher.launch
+    launcher.launch = lambda *a: (seen.append(session.is_ready(str(tmp_path))), original(*a))[1]
+    assert not session.is_ready(str(tmp_path))
+    assert run_until(service, lambda: session.is_ready(str(tmp_path)))
+    assert seen == [False] and len(launcher.launched) == 1
+
+
+def test_the_session_is_told_even_when_the_reader_is_broken(service, sim, tmp_path):
+    sim.fail_next = 10 ** 6  # the chip never answers
+    assert run_until(service, lambda: session.is_ready(str(tmp_path)))
+
+
+def test_the_session_is_told_when_there_is_no_tag(service, tmp_path):
+    assert run_until(service, lambda: session.is_ready(str(tmp_path)))
 
 
 # ---------------------------------------------------------------- NTAG tags end to end

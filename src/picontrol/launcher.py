@@ -54,7 +54,17 @@ class Procs:
         return subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
 
 
-SESSION_WAIT = 15.0  # seconds to wait for the session to take a request
+# EmulationStation only reacts to a polite stop (SIGTERM) once it has finished loading, which can take a minute with
+# thousands of games. Killing it by force leaves the console keyboard in a broken state, so it is only done after
+# ES_KILL_AFTER seconds, for an EmulationStation that is truly stuck. Emulators are different: they hang rarely
+# and are killed after EMULATOR_KILL_AFTER seconds.
+# EmulationStation ne réagit à un arrêt poli (SIGTERM) qu'une fois son chargement terminé, ce qui peut prendre une
+# minute avec des milliers de jeux. Le tuer de force laisse le clavier de la console dans un état cassé : on ne le
+# fait qu'après ES_KILL_AFTER secondes, pour un EmulationStation réellement bloqué.
+TERM_EVERY = 2.0  # seconds between two polite stop requests
+EMULATOR_KILL_AFTER = 8.0
+ES_KILL_AFTER = 120.0
+SESSION_WAIT = 150.0  # seconds to wait for the session to take a request
 EMULATOR_WAIT = 20.0  # seconds before giving up waiting for the emulator of a session game to appear
 
 
@@ -112,14 +122,29 @@ class Launcher:
 
     # ------------------------------------------------------------------ actions
     def _stop_all(self):
-        for sig in ("TERM", "KILL"):
-            self.procs.pkill(sig, ES_PATTERN, full=True)
-            self.procs.pkill(sig, self._emulators)
-            deadline = time.monotonic() + 4
-            while time.monotonic() < deadline:
-                if not (self.procs.pgrep(ES_PATTERN, full=True) or self.procs.pgrep(self._emulators)):
-                    return
-                self._sleep(0.2)
+        """Stop EmulationStation and any emulator, politely first (see ES_KILL_AFTER)."""
+        begin = self._clock()
+        next_term = begin
+        while True:
+            es = self.procs.pgrep(ES_PATTERN, full=True)
+            emulator = self.procs.pgrep(self._emulators)
+            if not (es or emulator):
+                return
+            now = self._clock()
+            elapsed = now - begin
+            if elapsed > ES_KILL_AFTER + 5:
+                log.error("Could not stop EmulationStation or the emulator")
+                return
+            if now >= next_term:
+                self.procs.pkill("TERM", ES_PATTERN, full=True)
+                self.procs.pkill("TERM", self._emulators)
+                next_term = now + TERM_EVERY
+            if emulator and elapsed > EMULATOR_KILL_AFTER:
+                self.procs.pkill("KILL", self._emulators)
+            if es and elapsed > ES_KILL_AFTER:
+                log.error("EmulationStation does not stop: killing it")
+                self.procs.pkill("KILL", ES_PATTERN, full=True)
+            self._sleep(0.2)
 
     def launch(self, system, rom_path):
         if self.shutting_down:
@@ -144,19 +169,28 @@ class Launcher:
         except LaunchError as exc:
             log.error("%s", exc)
             return False
-        deadline = self._clock() + SESSION_WAIT
-        attempt = 0
-        # The session reads the request once EmulationStation (or the running game) has ended: keep asking
-        # them to stop until that has happened. The emulator of the new game does not exist yet at that point.
+        begin = self._clock()
+        next_term = begin
+        # The session reads the request once EmulationStation (or the running game) has ended: keep asking them
+        # to stop until that has happened. The emulator of the new game does not exist yet at that point.
         while session.request_pending(self.runtime_dir):
-            if self._clock() > deadline:
+            if self.shutting_down:  # the system goes down: the request was replaced by an "exit" one, keep it
+                return True
+            now = self._clock()
+            elapsed = now - begin
+            if elapsed > SESSION_WAIT:
                 session.clear_request(self.runtime_dir)
                 return False
-            sig = "TERM" if attempt < 6 else "KILL"
-            self.procs.pkill(sig, ES_PATTERN, full=True)
-            self.procs.pkill(sig, self._emulators)
+            if now >= next_term:
+                self.procs.pkill("TERM", ES_PATTERN, full=True)
+                self.procs.pkill("TERM", self._emulators)
+                next_term = now + TERM_EVERY
+            if elapsed > EMULATOR_KILL_AFTER:
+                self.procs.pkill("KILL", self._emulators)
+            if elapsed > ES_KILL_AFTER:
+                log.error("EmulationStation does not stop: killing it")
+                self.procs.pkill("KILL", ES_PATTERN, full=True)
             self._sleep(0.5)
-            attempt += 1
         self._session_game, self._emulator_seen = True, False
         self._game_deadline, self._last_check = self._clock() + EMULATOR_WAIT, -1e9
         return True

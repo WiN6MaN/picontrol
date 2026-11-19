@@ -67,6 +67,8 @@ La correction est un processus qui ne lâche jamais la console :
 
 Chaque processus garde la console, exactement comme pour un jeu lancé depuis EmulationStation. Le service dépose seulement un petit fichier de demande (noms revalidés par la session ; aucun shell, listes d'arguments uniquement) et arrête EmulationStation. Sans session (bloc de démarrage pas encore mis à jour), le service se rabat sur l'ancienne méthode directe et journalise un avertissement ; `picontrol doctor` le signale. Si la session elle-même échoue, EmulationStation démarre normalement.
 
+**Une cassette déjà dans le lecteur au démarrage.** EmulationStation met du temps à charger (davantage avec des milliers de jeux) et n'obéit à un arrêt poli (`SIGTERM`) qu'une fois son chargement fini. Le tuer de force laisserait le clavier de la console dans un état cassé (la manette ne répond alors plus dans les menus RetroPie). Au démarrage, quand les tags sont lancés au démarrage (`launch_at_start`), la session attend donc quelques secondes (12 au maximum) le premier balayage du service : si une cassette est présente, son jeu démarre tout de suite et EmulationStation ne démarre qu'après ; sinon EmulationStation démarre comme d'habitude. Ensuite, EmulationStation n'est jamais tué de force, sauf s'il est bloqué depuis deux minutes.
+
 Un test reproduit le défaut avec de vrais processus sur un pseudo-terminal et vérifie que le jeu et EmulationStation restent dans le groupe de processus au premier plan du terminal ; un test témoin confirme que l'ancienne méthode est bien détectée.
 
 ## Stratégie de test
